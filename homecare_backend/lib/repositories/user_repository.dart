@@ -1,11 +1,23 @@
 import '../db/postgres_client.dart';
 import '../models/user_model.dart';
 
-class UserRepository {
+abstract class UserRepository {
+  Future<User?> findUserByEmail(String email);
+
+  Future<User> createUser({
+    required String id,
+    required String name,
+    required String email,
+    required String passwordHash,
+  });
+}
+
+class PostgresUserRepository implements UserRepository {
+  PostgresUserRepository(this._db);
+
   final PostgresClient _db;
 
-  UserRepository(this._db);
-
+  @override
   Future<User?> findUserByEmail(String email) async {
     final result = await _db.raw.query(
       'SELECT id, name, email, password_hash FROM users WHERE email = @email LIMIT 1',
@@ -16,7 +28,6 @@ class UserRepository {
       return null;
     }
 
-    // Chuyển kết quả truy vấn thành một Map để dễ truy cập
     final row = result.first.toColumnMap();
     return User(
       id: row['id'] as String,
@@ -26,18 +37,28 @@ class UserRepository {
     );
   }
 
-  Future<void> createUser({
+  @override
+  Future<User> createUser({
+    required String id,
     required String name,
     required String email,
     required String passwordHash,
   }) async {
     await _db.raw.query(
-      'INSERT INTO users (name, email, password_hash) VALUES (@name, @email, @hash)',
+      'INSERT INTO users (id, name, email, password_hash) VALUES (@id, @name, @email, @hash)',
       substitutionValues: {
+        'id': id,
         'name': name,
         'email': email,
         'hash': passwordHash,
       },
+    );
+
+    return User(
+      id: id,
+      name: name,
+      email: email,
+      passwordHash: passwordHash,
     );
   }
 }
