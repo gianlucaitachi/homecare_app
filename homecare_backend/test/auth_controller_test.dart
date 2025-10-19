@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:homecare_backend/controllers/auth_controller.dart';
 import 'package:homecare_backend/models/user_model.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
@@ -103,6 +104,37 @@ void main() {
       expect(loginBody['accessToken'], isNotEmpty);
       expect(loginBody['refreshToken'], isNotEmpty);
       expect(loginBody['user']['email'], equals('alice@example.com'));
+    });
+
+    test('login accepts legacy sha256 password hashes', () async {
+      final legacyPassword = 'LegacySecret123!';
+      final legacyHash = sha256.convert(utf8.encode(legacyPassword)).toString();
+
+      await userRepository.createUser(
+        id: const Uuid().v4(),
+        name: 'Bob',
+        email: 'bob@example.com',
+        passwordHash: legacyHash,
+      );
+
+      final loginRequest = Request(
+        'POST',
+        Uri.parse('http://localhost/auth/login'),
+        body: jsonEncode({
+          'email': 'bob@example.com',
+          'password': legacyPassword,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
+
+      final response = await controller.login(loginRequest);
+      expect(response.statusCode, equals(200));
+
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['accessToken'], isNotEmpty);
+      expect(body['refreshToken'], isNotEmpty);
+      expect(body['user']['email'], equals('bob@example.com'));
     });
   });
 }
