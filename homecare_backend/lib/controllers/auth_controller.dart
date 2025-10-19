@@ -1,15 +1,26 @@
 import 'dart:convert';
+
 import 'package:shelf/shelf.dart';
-import 'package:crypto/crypto.dart';
+import 'package:uuid/uuid.dart';
 
 import '../repositories/user_repository.dart';
 import '../services/jwt_service.dart';
+import '../services/password_service.dart';
 
 class AuthController {
-  final UserRepository _userRepository;
-  final JwtService _jwtService = JwtService();
+  AuthController(
+    this._userRepository, {
+    JwtService? jwtService,
+    PasswordService? passwordService,
+    Uuid? uuid,
+  })  : _jwtService = jwtService ?? JwtService(),
+        _passwordService = passwordService ?? const PasswordService(),
+        _uuid = uuid ?? const Uuid();
 
-  AuthController(this._userRepository);
+  final UserRepository _userRepository;
+  final JwtService _jwtService;
+  final PasswordService _passwordService;
+  final Uuid _uuid;
 
   Future<Response> register(Request req) async {
     final body = jsonDecode(await req.readAsString());
@@ -23,18 +34,27 @@ class AuthController {
 
     final existingUser = await _userRepository.findUserByEmail(email);
     if (existingUser != null) {
-        return Response(409, body: jsonEncode({'error': 'user with this email already exists'}));
+      return Response(409, body: jsonEncode({'error': 'user with this email already exists'}));
     }
 
-    final passwordHash = sha256.convert(utf8.encode(password)).toString();
+    final passwordHash = _passwordService.hashPassword(password);
+    final userId = _uuid.v4();
 
-    await _userRepository.createUser(
+    final user = await _userRepository.createUser(
+      id: userId,
       name: name,
       email: email,
       passwordHash: passwordHash,
     );
 
-    return Response.ok(jsonEncode({'message': 'registration successful'}));
+    return Response.ok(
+      jsonEncode(
+        {
+          'message': 'registration successful',
+          'user': user.toJson(),
+        },
+      ),
+    );
   }
 
   Future<Response> login(Request req) async {
@@ -51,8 +71,9 @@ class AuthController {
       return Response.forbidden(jsonEncode({'error': 'invalid_credentials'}));
     }
 
-    final passwordHash = sha256.convert(utf8.encode(password)).toString();
-    if (user.passwordHash != passwordHash) {
+    final isValidPassword =
+        _passwordService.verifyPassword(password, user.passwordHash);
+    if (!isValidPassword) {
       return Response.forbidden(jsonEncode({'error': 'invalid_credentials'}));
     }
 
@@ -66,19 +87,19 @@ class AuthController {
     }));
   }
 
-   Future<Response> refresh(Request req) async {
+  Future<Response> refresh(Request req) async {
     final body = jsonDecode(await req.readAsString());
     final refreshToken = body['refreshToken'] as String?;
     if (refreshToken == null) return Response(400, body: jsonEncode({'error': 'refreshToken is required'}));
 
     try {
-      final jwt = _jwtService.verify(refreshToken);
+      final jwt = _jwtService.verifyRefreshToken(refreshToken);
       final sub = jwt.payload['sub'] as String?;
 
       if (sub == null || jwt.payload['type'] != 'refresh') {
         return Response.forbidden(jsonEncode({'error': 'invalid refresh token'}));
       }
-      
+
       final accessToken = _jwtService.signAccessToken({'sub': sub});
       final newRefreshToken = _jwtService.signRefreshToken({'sub': sub, 'type':'refresh'});
       

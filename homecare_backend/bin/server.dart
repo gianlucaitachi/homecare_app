@@ -14,7 +14,7 @@ Future<void> main(List<String> args) async {
   await dbClient.connect();
 
   // 2. Khởi tạo các Repository
-  final userRepository = UserRepository(dbClient);
+  final userRepository = PostgresUserRepository(dbClient);
 
   // 3. Khởi tạo các Controller với Repository tương ứng
   final authController = AuthController(userRepository);
