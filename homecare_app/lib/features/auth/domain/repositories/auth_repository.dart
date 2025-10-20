@@ -14,4 +14,7 @@ abstract class AuthRepository {
 
   // Hàm đăng xuất
   Future<void> logout();
+
+  // Kiểm tra xem có phiên đăng nhập hợp lệ không
+  Future<bool> hasValidSession();
 }

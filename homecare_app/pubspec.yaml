@@ -46,13 +46,15 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  bloc_test: ^9.1.5
-  mocktail: ^1.0.3
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.4
 
   # Code generation & debugging
   build_runner: ^2.4.11
   hive_generator: ^2.0.1
   pretty_dio_logger: ^1.3.1 # For logging network calls
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.4
 
 flutter:
   uses-material-design: true

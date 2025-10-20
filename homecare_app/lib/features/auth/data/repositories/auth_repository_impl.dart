@@ -28,8 +28,8 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       // Lưu token vào secure storage
-      await _secureStorage.write(key: 'accessToken', value: accessToken);
-      await _secureStorage.write(key: 'refreshToken', value: refreshToken);
+      await _secureStorage.write(key: 'access_token', value: accessToken);
+      await _secureStorage.write(key: 'refresh_token', value: refreshToken);
 
     } on DioException catch (e) {
       // Xử lý lỗi từ Dio
@@ -68,5 +68,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> logout() async {
     // Xóa tất cả token khi đăng xuất
     await _secureStorage.deleteAll();
+  }
+
+  @override
+  Future<bool> hasValidSession() async {
+    final accessToken = await _secureStorage.read(key: 'accessToken');
+    final refreshToken = await _secureStorage.read(key: 'refreshToken');
+
+    final hasAccessToken = accessToken != null && accessToken.isNotEmpty;
+    final hasRefreshToken = refreshToken != null && refreshToken.isNotEmpty;
+
+    return hasAccessToken && hasRefreshToken;
   }
 }
