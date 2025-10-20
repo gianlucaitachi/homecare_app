@@ -46,7 +46,7 @@ class TaskSocketService {
     _channel = null;
   }
 
-  Uri _buildUri({String? familyId}) {
+  Uri _buildUri({String? familyId, String? token}) {
     final base = Uri.parse(baseUrl);
     final scheme = base.scheme == 'https' ? 'wss' : 'ws';
     final segments = <String>[
