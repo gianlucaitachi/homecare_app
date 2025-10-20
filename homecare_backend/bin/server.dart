@@ -12,14 +12,12 @@ import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
-import 'package:homecare_backend/models/auth_context.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/socket_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
-import 'package:homecare_backend/utils/request_context.dart';
 
 Future<void> main(List<String> args) async {
   // 1. Khởi tạo kết nối CSDL
@@ -52,21 +50,6 @@ Future<void> main(List<String> args) async {
     return Response.ok(jsonEncode({'status': 'ok'}));
   });
 
-  final meRouter = Router()
-    ..get('/', (Request request) async {
-      final userId = request.authenticatedUserId;
-      if (userId == null) {
-        return Response(401, body: jsonEncode({'error': 'unauthorized'}));
-      }
-
-      final user = await userRepository.findUserById(userId);
-      if (user == null) {
-        return Response.notFound(jsonEncode({'error': 'user_not_found'}));
-      }
-
-      return Response.ok(jsonEncode({'user': user.toJson()}));
-    });
-
   final authRouter = Router()
     ..post('/register', authController.register)
     ..post('/login', authController.login)
@@ -75,10 +58,6 @@ Future<void> main(List<String> args) async {
   apiRouter.mount('/auth', authRouter);
 
   final meRouter = Router()..get('/', authController.me);
-  final protectedMeRouter = Pipeline()
-      .addMiddleware(_requireAuthContextMiddleware())
-      .addHandler(meRouter);
-  apiRouter.mount('/me', protectedMeRouter);
 
   final familiesRouter = Router()
     ..get('/<familyId>/messages', chatController.getMessages)
@@ -100,10 +79,6 @@ Future<void> main(List<String> args) async {
     userRepository,
     meRouter,
   );
-
-  apiRouter.mount('/health', (Request request) async {
-    return Response.ok(jsonEncode({'status': 'ok'}));
-  });
 
   apiRouter.mount('/families', protectedFamiliesHandler);
   apiRouter.mount('/tasks', protectedTasksHandler);
@@ -150,14 +125,3 @@ Middleware _jsonResponseMiddleware() {
   };
 }
 
-Middleware _requireAuthContextMiddleware() {
-  return (innerHandler) {
-    return (request) async {
-      final auth = request.context['auth'];
-      if (auth is! AuthContext) {
-        return Response(401, body: jsonEncode({'error': 'unauthorized'}));
-      }
-      return innerHandler(request);
-    };
-  };
-}
