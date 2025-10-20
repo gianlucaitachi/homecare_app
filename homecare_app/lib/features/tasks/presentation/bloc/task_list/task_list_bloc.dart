@@ -103,6 +103,7 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
     }
 
     emit(state.copyWith(tasks: nextTasks));
+    _syncPendingReminders(nextTasks);
 
     if (mutatedTask != null) {
       if (previousTask != null) {

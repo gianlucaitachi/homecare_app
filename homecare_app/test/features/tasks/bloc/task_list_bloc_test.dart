@@ -36,6 +36,10 @@ void main() {
     updatedAt: DateTime(2023, 12, 31, 8),
     completedAt: null,
   );
+  final _dueTask = task.copyWith(
+    dueDate: DateTime(2024, 2, 1),
+    status: TaskStatus.pending,
+  );
 
   setUpAll(() {
     registerFallbackValue(_FakeTaskEvent());
@@ -45,6 +49,7 @@ void main() {
     repository = _MockTaskRepository();
     taskBloc = _MockTaskBloc();
     when(() => taskBloc.stream).thenAnswer((_) => const Stream.empty());
+    when(() => taskBloc.add(any())).thenReturn(null);
     when(() => repository.close()).thenAnswer((_) async {});
   });
 
@@ -98,6 +103,41 @@ void main() {
       verify(
         () => taskBloc.add(
           any(that: isA<task_bloc_event.TaskCreated>()),
+        ),
+      ).called(1);
+    },
+  );
+
+  blocTest<TaskListBloc, TaskListState>(
+    're-syncs reminders when socket task event updates pending tasks',
+    build: () {
+      when(() => repository.fetchTasks(familyId: any(named: 'familyId')))
+          .thenAnswer((_) async => []);
+      when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
+          .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
+      return TaskListBloc(repository: repository, taskBloc: taskBloc);
+    },
+    act: (bloc) async {
+      bloc.add(const TaskListStarted());
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(
+        TaskListTaskEventReceived(
+          domain_event.TaskEvent(
+            type: domain_event.TaskEventType.updated,
+            task: _dueTask,
+          ),
+        ),
+      );
+    },
+    expect: () => [
+      const TaskListState(status: TaskListStatus.loading),
+      const TaskListState(status: TaskListStatus.success, tasks: []),
+      TaskListState(status: TaskListStatus.success, tasks: [_dueTask]),
+    ],
+    verify: (_) {
+      verify(
+        () => taskBloc.add(
+          any(that: isA<task_bloc_event.TaskRemindersSynced>()),
         ),
       ).called(1);
     },

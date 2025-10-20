@@ -1,9 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import '../../../../core/constants/storage_keys.dart';
-
+import 'package:homecare_app/core/constants/storage_keys.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class TaskSocketService {
@@ -18,16 +18,12 @@ class TaskSocketService {
 
   Stream<Map<String, dynamic>> connect({String? familyId}) async* {
     await _channel?.sink.close();
+    final uri = _buildUri(familyId: familyId);
     final token = await _secureStorage.read(key: StorageKeys.accessToken);
-    final uri = _buildUri(familyId: familyId, token: token);
-    final headers = <String, dynamic>{
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-
-    final channel = WebSocketChannel.connect(
-      uri,
-      headers: headers.isEmpty ? null : headers,
-    );
+    final headers = token != null
+        ? {HttpHeaders.authorizationHeader: 'Bearer $token'}
+        : null;
+    final channel = IOWebSocketChannel.connect(uri, headers: headers);
     _channel = channel;
 
     yield* channel.stream.map((event) {
@@ -53,23 +49,20 @@ class TaskSocketService {
   Uri _buildUri({String? familyId, String? token}) {
     final base = Uri.parse(baseUrl);
     final scheme = base.scheme == 'https' ? 'wss' : 'ws';
-    final pathSegments = [
+    final segments = <String>[
       ...base.pathSegments.where((segment) => segment.isNotEmpty),
       'api',
       'tasks',
       'ws',
     ];
-    final queryParameters = <String, String>{
-      if (familyId != null) 'familyId': familyId,
-      if (token != null && token.isNotEmpty) 'access_token': token,
-    };
+
     return Uri(
       scheme: scheme,
       userInfo: base.userInfo.isEmpty ? null : base.userInfo,
       host: base.host,
       port: base.hasPort ? base.port : null,
-      pathSegments: pathSegments,
-      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+      pathSegments: segments,
+      queryParameters: familyId != null ? {'familyId': familyId} : null,
     );
   }
 }
