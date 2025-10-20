@@ -65,7 +65,7 @@ void main() async {
     password: 'your_password', // Mật khẩu của bạn
   );
   await dbConnection.open();
-  print('✅ Connected to PostgreSQL database');
+  stdout.writeln('✅ Connected to PostgreSQL database');
 
   final app = Router();
 
@@ -109,7 +109,7 @@ void main() async {
     );
     
     final newUser = insertResult.first.toColumnMap();
-    print('✅ New user registered: $newUser');
+    stdout.writeln('✅ New user registered: $newUser');
 
     return jsonResponse(201, {'user': newUser});
   });
@@ -159,7 +159,7 @@ void main() async {
     ).sign(SecretKey(jwtSecret), expiresIn: Duration(days: 7));
 
 
-    print('✅ User logged in: ${user['email']}');
+    stdout.writeln('✅ User logged in: ${user['email']}');
 
     return jsonResponse(200, {
       'accessToken': accessToken,
@@ -176,7 +176,7 @@ void main() async {
     final userId = jwtPayload['userId'];
     final name = jwtPayload['name'];
 
-    print('✅ Checked auth status for user id: $userId');
+    stdout.writeln('✅ Checked auth status for user id: $userId');
 
     // Trong thực tế, bạn có thể muốn truy vấn lại DB để lấy thông tin user mới nhất
     return jsonResponse(200, {
@@ -191,5 +191,5 @@ void main() async {
       .addHandler(app);
 
   final server = await io.serve(handler, 'localhost', 8080);
-  print('🚀 Server running at http://${server.address.host}:${server.port}');
+  stdout.writeln('🚀 Server running at http://${server.address.host}:${server.port}');
 }
