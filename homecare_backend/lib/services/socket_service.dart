@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:socket_io/socket_io.dart' as io;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../models/message_model.dart';
 import '../repositories/message_repository.dart';
@@ -89,6 +91,9 @@ class SocketService {
 
   final SocketServerAdapter _server;
   final MessageRepository _messageRepository;
+  final _webSocketClientsByFamily = <String, Set<WebSocketChannel>>{};
+  final _familyByWebSocket = <WebSocketChannel, String>{};
+  final _userIdByWebSocket = <WebSocketChannel, String>{};
 
   void initialize() {
     _server.onConnection((client) {
@@ -122,11 +127,156 @@ class SocketService {
   }
 
   void broadcastChatMessage(Message message) {
-    _server.toRoom(_roomName(message.familyId)).emit('chat:message', message.toJson());
+    final payload = message.toJson();
+    _server
+        .toRoom(_roomName(message.familyId))
+        .emit('chat:message', payload);
+    _emitToWebSocketClients(
+      message.familyId,
+      _encodeWebSocketEvent(
+        type: 'chat:message',
+        familyId: message.familyId,
+        data: payload,
+      ),
+    );
   }
 
   void broadcastTaskUpdated(String familyId, Map<String, dynamic> payload) {
     _server.toRoom(_roomName(familyId)).emit('task:updated', payload);
+    _emitToWebSocketClients(
+      familyId,
+      _encodeWebSocketEvent(
+        type: 'task:updated',
+        familyId: familyId,
+        data: payload,
+      ),
+    );
+  }
+
+  void registerWebSocketClient({
+    required String familyId,
+    required String userId,
+    required WebSocketChannel channel,
+  }) {
+    final clients =
+        _webSocketClientsByFamily.putIfAbsent(familyId, () => <WebSocketChannel>{});
+    clients.add(channel);
+    _familyByWebSocket[channel] = familyId;
+    _userIdByWebSocket[channel] = userId;
+
+    channel.stream.listen(
+      (dynamic data) => _handleIncomingWebSocketMessage(channel, data),
+      onError: (_) => _removeWebSocketClient(channel),
+      onDone: () => _removeWebSocketClient(channel),
+      cancelOnError: true,
+    );
+  }
+
+  Future<void> _handleIncomingWebSocketMessage(
+    WebSocketChannel channel,
+    dynamic data,
+  ) async {
+    final familyId = _familyByWebSocket[channel];
+    final userId = _userIdByWebSocket[channel];
+    if (familyId == null || userId == null) {
+      return;
+    }
+
+    final payload = _coercePayload(data);
+    if (payload == null) {
+      return;
+    }
+
+    final type = _readString(payload, 'type');
+    if (type != null && type != 'chat:send') {
+      return;
+    }
+
+    final content = _readString(payload, 'content');
+    if (content == null || content.trim().isEmpty) {
+      return;
+    }
+
+    final message = await _messageRepository.createMessage(
+      familyId: familyId,
+      senderId: userId,
+      content: content,
+    );
+
+    broadcastChatMessage(message);
+  }
+
+  Map<String, dynamic>? _coercePayload(dynamic payload) {
+    if (payload is String) {
+      try {
+        final decoded = jsonDecode(payload);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+        if (decoded is Map) {
+          return decoded.map((key, dynamic value) =>
+              MapEntry(key.toString(), value));
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (payload is Map<String, dynamic>) {
+      return payload;
+    }
+
+    if (payload is Map) {
+      return payload.map((key, dynamic value) =>
+          MapEntry(key.toString(), value));
+    }
+
+    return null;
+  }
+
+  void _emitToWebSocketClients(String familyId, String encodedPayload) {
+    final clients = _webSocketClientsByFamily[familyId];
+    if (clients == null || clients.isEmpty) {
+      return;
+    }
+
+    for (final channel in List<WebSocketChannel>.from(clients)) {
+      try {
+        channel.sink.add(encodedPayload);
+      } catch (_) {
+        _removeWebSocketClient(channel);
+      }
+    }
+  }
+
+  String _encodeWebSocketEvent({
+    required String type,
+    required String familyId,
+    required Map<String, dynamic> data,
+  }) {
+    return jsonEncode({
+      'type': type,
+      'familyId': familyId,
+      'data': data,
+    });
+  }
+
+  void _removeWebSocketClient(WebSocketChannel channel) {
+    final familyId = _familyByWebSocket.remove(channel);
+    _userIdByWebSocket.remove(channel);
+    if (familyId == null) {
+      return;
+    }
+
+    final clients = _webSocketClientsByFamily[familyId];
+    if (clients == null) {
+      return;
+    }
+
+    clients.remove(channel);
+    if (clients.isEmpty) {
+      _webSocketClientsByFamily.remove(familyId);
+    }
   }
 
   String? _readString(dynamic payload, String key) {
