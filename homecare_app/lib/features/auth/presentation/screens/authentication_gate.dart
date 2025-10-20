@@ -13,7 +13,7 @@ class AuthenticationGate extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state is Authenticated) {
-          return const AuthenticatedShell();
+          return AuthenticatedShell(session: state.session);
         } else if (state is Unauthenticated || state is AuthFailure) {
           // Người dùng chưa đăng nhập hoặc có lỗi, hiển thị màn hình đăng nhập
           return const LoginScreen();

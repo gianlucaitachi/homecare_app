@@ -2,6 +2,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/auth_session.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 part 'auth_event.dart';
@@ -26,11 +27,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      await _authRepository.login(
+      final session = await _authRepository.login(
         email: event.email,
         password: event.password,
       );
-      emit(Authenticated());
+      emit(Authenticated(session));
     } catch (e) {
       emit(AuthFailure(e.toString()));
     }
@@ -43,15 +44,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      await _authRepository.register(
+      final session = await _authRepository.register(
         name: event.name,
         email: event.email,
         password: event.password,
       );
-      // Sau khi đăng ký thành công, có thể tự động đăng nhập hoặc
-      // chuyển về màn hình đăng nhập với thông báo.
-      // Ở đây, chúng ta sẽ chuyển sang trạng thái đã xác thực.
-      emit(Authenticated());
+      emit(Authenticated(session));
     } catch (e) {
       emit(AuthFailure(e.toString()));
     }
@@ -76,9 +74,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     try {
-      final hasSession = await _authRepository.hasValidSession();
-      if (hasSession) {
-        emit(Authenticated());
+      final session = await _authRepository.restoreSession();
+      if (session != null) {
+        emit(Authenticated(session));
       } else {
         emit(Unauthenticated());
       }
