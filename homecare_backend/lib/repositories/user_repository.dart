@@ -9,6 +9,8 @@ abstract class UserRepository {
     required String name,
     required String email,
     required String passwordHash,
+    required String familyId,
+    String? familyName,
   });
 }
 
@@ -20,7 +22,7 @@ class PostgresUserRepository implements UserRepository {
   @override
   Future<User?> findUserByEmail(String email) async {
     final result = await _db.raw.query(
-      'SELECT id, name, email, password_hash FROM users WHERE email = @email LIMIT 1',
+      'SELECT id, name, email, password_hash, family_id FROM users WHERE email = @email LIMIT 1',
       substitutionValues: {'email': email},
     );
 
@@ -34,6 +36,7 @@ class PostgresUserRepository implements UserRepository {
       name: row['name'] as String,
       email: row['email'] as String,
       passwordHash: row['password_hash'] as String,
+      familyId: row['family_id'] as String,
     );
   }
 
@@ -43,22 +46,38 @@ class PostgresUserRepository implements UserRepository {
     required String name,
     required String email,
     required String passwordHash,
+    required String familyId,
+    String? familyName,
   }) async {
-    await _db.raw.query(
-      'INSERT INTO users (id, name, email, password_hash) VALUES (@id, @name, @email, @hash)',
-      substitutionValues: {
-        'id': id,
-        'name': name,
-        'email': email,
-        'hash': passwordHash,
-      },
-    );
+    await _db.raw.transaction((ctx) async {
+      if (familyName != null) {
+        await ctx.query(
+          'INSERT INTO families (id, name) VALUES (@familyId, @familyName) ON CONFLICT (id) DO NOTHING',
+          substitutionValues: {
+            'familyId': familyId,
+            'familyName': familyName,
+          },
+        );
+      }
+
+      await ctx.query(
+        'INSERT INTO users (id, name, email, password_hash, family_id) VALUES (@id, @name, @email, @hash, @familyId)',
+        substitutionValues: {
+          'id': id,
+          'name': name,
+          'email': email,
+          'hash': passwordHash,
+          'familyId': familyId,
+        },
+      );
+    });
 
     return User(
       id: id,
       name: name,
       email: email,
       passwordHash: passwordHash,
+      familyId: familyId,
     );
   }
 }

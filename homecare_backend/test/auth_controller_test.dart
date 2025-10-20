@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 
 class InMemoryUserRepository implements UserRepository {
   final Map<String, User> _users = {};
+  final Map<String, String> _families = {};
 
   @override
   Future<User?> findUserByEmail(String email) async {
@@ -24,12 +25,18 @@ class InMemoryUserRepository implements UserRepository {
     required String name,
     required String email,
     required String passwordHash,
+    required String familyId,
+    String? familyName,
   }) async {
+    if (familyName != null) {
+      _families[familyId] = familyName;
+    }
     final user = User(
       id: id,
       name: name,
       email: email,
       passwordHash: passwordHash,
+      familyId: familyId,
     );
     _users[email] = user;
     return user;
@@ -77,12 +84,14 @@ void main() {
           jsonDecode(await registerResponse.readAsString()) as Map<String, dynamic>;
       expect(registerBody['message'], equals('registration successful'));
       expect(registerBody['user']['email'], equals('alice@example.com'));
+      expect(registerBody['user']['familyId'], isNotEmpty);
       expect(registerBody['accessToken'], isNotEmpty);
       expect(registerBody['refreshToken'], isNotEmpty);
 
       final storedUser = await userRepository.findUserByEmail('alice@example.com');
       expect(storedUser, isNotNull);
       expect(storedUser!.passwordHash, isNot(equals('SuperSecret123!')));
+      expect(storedUser.familyId, equals(registerBody['user']['familyId']));
       expect(
         passwordService.verifyPassword('SuperSecret123!', storedUser.passwordHash),
         isTrue,
@@ -106,6 +115,7 @@ void main() {
       expect(loginBody['accessToken'], isNotEmpty);
       expect(loginBody['refreshToken'], isNotEmpty);
       expect(loginBody['user']['email'], equals('alice@example.com'));
+      expect(loginBody['user']['familyId'], equals(storedUser.familyId));
     });
 
     test('login accepts legacy sha256 password hashes', () async {
@@ -117,6 +127,7 @@ void main() {
         name: 'Bob',
         email: 'bob@example.com',
         passwordHash: legacyHash,
+        familyId: const Uuid().v4(),
       );
 
       final loginRequest = Request(
@@ -137,6 +148,7 @@ void main() {
       expect(body['accessToken'], isNotEmpty);
       expect(body['refreshToken'], isNotEmpty);
       expect(body['user']['email'], equals('bob@example.com'));
+      expect(body['user']['familyId'], isNotEmpty);
     });
   });
 }
