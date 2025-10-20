@@ -6,6 +6,11 @@ import '../utils/request_context.dart';
 Middleware authenticationMiddleware(JwtService jwtService) {
   return (innerHandler) {
     return (request) async {
+      final path = request.url.path;
+      if (path.endsWith('auth/refresh')) {
+        return innerHandler(request);
+      }
+
       final authHeader = request.headers['Authorization'] ??
           request.headers['authorization'];
 

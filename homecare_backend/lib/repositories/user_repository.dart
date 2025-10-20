@@ -43,6 +43,27 @@ class PostgresUserRepository implements UserRepository {
   }
 
   @override
+  Future<User?> findUserById(String id) async {
+    final result = await _db.raw.query(
+      'SELECT id, name, email, password_hash, family_id FROM users WHERE id = @id LIMIT 1',
+      substitutionValues: {'id': id},
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    final row = result.first.toColumnMap();
+    return User(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      email: row['email'] as String,
+      passwordHash: row['password_hash'] as String,
+      familyId: row['family_id'] as String,
+    );
+  }
+
+  @override
   Future<User> createUser({
     required String id,
     required String name,

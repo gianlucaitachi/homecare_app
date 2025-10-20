@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -141,7 +142,7 @@ void main() {
       expect(loginBody['user']['familyId'], equals(storedUser.familyId));
     });
 
-    test('refresh issues new tokens when authenticated', () async {
+    test('refresh issues new tokens with valid refresh token', () async {
       final registerResponse = await router.call(
         Request(
           'POST',
@@ -157,8 +158,63 @@ void main() {
 
       final registerBody =
           jsonDecode(await registerResponse.readAsString()) as Map<String, dynamic>;
+      final refreshToken = registerBody['refreshToken'] as String;
+
+      final response = await refreshHandler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/auth/refresh'),
+          body: jsonEncode({'refreshToken': refreshToken}),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      expect(response.statusCode, equals(200));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['accessToken'], isNotEmpty);
+      expect(body['refreshToken'], isNotEmpty);
+      expect(body['refreshToken'], isNot(equals(refreshToken)));
+    });
+
+    test('refresh succeeds with an expired access token', () async {
+      jwtService = JwtService(
+        accessSecret: 'access-secret',
+        refreshSecret: 'refresh-secret',
+        accessTokenDuration: const Duration(milliseconds: 5),
+        refreshTokenDuration: const Duration(days: 1),
+      );
+      controller = AuthController(
+        userRepository,
+        jwtService: jwtService,
+        passwordService: passwordService,
+        uuid: const Uuid(),
+      );
+      router = Router()
+        ..post('/api/auth/register', controller.register)
+        ..post('/api/auth/login', controller.login);
+      refreshHandler = Pipeline()
+          .addMiddleware(authenticationMiddleware(jwtService))
+          .addHandler(controller.refresh);
+
+      final registerResponse = await router.call(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/auth/register'),
+          body: jsonEncode({
+            'email': 'expired@example.com',
+            'password': 'ExpiredPassword123',
+            'name': 'Expired User',
+          }),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      final registerBody =
+          jsonDecode(await registerResponse.readAsString()) as Map<String, dynamic>;
       final accessToken = registerBody['accessToken'] as String;
       final refreshToken = registerBody['refreshToken'] as String;
+
+      await Future.delayed(const Duration(milliseconds: 20));
 
       final response = await refreshHandler(
         Request(
@@ -176,40 +232,11 @@ void main() {
       final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
       expect(body['accessToken'], isNotEmpty);
       expect(body['refreshToken'], isNotEmpty);
-      expect(body['refreshToken'], isNot(equals(refreshToken)));
     });
 
-    test('refresh returns 401 when Authorization header missing', () async {
-      final loginResponse = await router.call(
-        Request(
-          'POST',
-          Uri.parse('http://localhost/api/auth/login'),
-          body: jsonEncode({
-            'email': 'erin@example.com',
-            'password': 'Password123!',
-          }),
-          headers: {'content-type': 'application/json'},
-        ),
-      );
-
-      expect(loginResponse.statusCode, equals(401));
-
-      final registerResponse = await router.call(
-        Request(
-          'POST',
-          Uri.parse('http://localhost/api/auth/register'),
-          body: jsonEncode({
-            'email': 'erin@example.com',
-            'password': 'Password123!',
-            'name': 'Erin',
-          }),
-          headers: {'content-type': 'application/json'},
-        ),
-      );
-
-      final registerBody =
-          jsonDecode(await registerResponse.readAsString()) as Map<String, dynamic>;
-      final refreshToken = registerBody['refreshToken'] as String;
+    test('refresh rejects refresh tokens for unknown users', () async {
+      final refreshToken = jwtService
+          .signRefreshToken({'sub': const Uuid().v4(), 'type': 'refresh'});
 
       final response = await refreshHandler(
         Request(
@@ -222,18 +249,18 @@ void main() {
 
       expect(response.statusCode, equals(401));
       final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
-      expect(body['error'], equals('unauthorized'));
+      expect(body['error'], equals('invalid_token'));
     });
 
-    test('refresh returns 401 when Authorization token is invalid', () async {
+    test('refresh rejects refresh tokens with incorrect type', () async {
       final registerResponse = await router.call(
         Request(
           'POST',
           Uri.parse('http://localhost/api/auth/register'),
           body: jsonEncode({
-            'email': 'invalid-header@example.com',
-            'password': 'InvalidHeader123',
-            'name': 'Invalid Header',
+            'email': 'type-check@example.com',
+            'password': 'TypeCheckPassword123',
+            'name': 'Type Check',
           }),
           headers: {'content-type': 'application/json'},
         ),
@@ -241,66 +268,17 @@ void main() {
 
       final registerBody =
           jsonDecode(await registerResponse.readAsString()) as Map<String, dynamic>;
-      final refreshToken = registerBody['refreshToken'] as String;
+      final userId = registerBody['user']['id'] as String;
+
+      final invalidRefreshToken = jwtService
+          .signRefreshToken({'sub': userId, 'type': 'session'});
 
       final response = await refreshHandler(
         Request(
           'POST',
           Uri.parse('http://localhost/api/auth/refresh'),
-          body: jsonEncode({'refreshToken': refreshToken}),
-          headers: {
-            'content-type': 'application/json',
-            'Authorization': 'Bearer invalid-token',
-          },
-        ),
-      );
-
-      expect(response.statusCode, equals(401));
-      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
-      expect(body['error'], equals('unauthorized'));
-    });
-
-    test('refresh rejects mismatched refresh token subject', () async {
-      final aliceResponse = await router.call(
-        Request(
-          'POST',
-          Uri.parse('http://localhost/api/auth/register'),
-          body: jsonEncode({
-            'email': 'alice-refresh@example.com',
-            'password': 'AliceRefresh123',
-            'name': 'Alice Refresh',
-          }),
+          body: jsonEncode({'refreshToken': invalidRefreshToken}),
           headers: {'content-type': 'application/json'},
-        ),
-      );
-
-      final bobResponse = await router.call(
-        Request(
-          'POST',
-          Uri.parse('http://localhost/api/auth/register'),
-          body: jsonEncode({
-            'email': 'bob-refresh@example.com',
-            'password': 'BobRefresh123',
-            'name': 'Bob Refresh',
-          }),
-          headers: {'content-type': 'application/json'},
-        ),
-      );
-
-      final aliceBody =
-          jsonDecode(await aliceResponse.readAsString()) as Map<String, dynamic>;
-      final bobBody =
-          jsonDecode(await bobResponse.readAsString()) as Map<String, dynamic>;
-
-      final response = await refreshHandler(
-        Request(
-          'POST',
-          Uri.parse('http://localhost/api/auth/refresh'),
-          body: jsonEncode({'refreshToken': aliceBody['refreshToken']}),
-          headers: {
-            'content-type': 'application/json',
-            'Authorization': 'Bearer ${bobBody['accessToken']}',
-          },
         ),
       );
 
