@@ -51,8 +51,9 @@ class TaskRepositoryImpl implements TaskRepository {
       _remoteDataSource.fetchTasks(familyId: familyId);
 
   @override
-  Stream<TaskEvent> subscribeToTaskEvents({String? familyId}) {
-    return _socketService.connect(familyId: familyId).map(_mapToTaskEvent);
+  Stream<TaskEvent> subscribeToTaskEvents({String? familyId}) async* {
+    final stream = await _socketService.connect(familyId: familyId);
+    yield* stream.map(_mapToTaskEvent);
   }
 
   TaskEvent _mapToTaskEvent(Map<String, dynamic> data) {
