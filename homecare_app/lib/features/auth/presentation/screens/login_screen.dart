@@ -1,8 +1,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/core/di/service_locator.dart';
+import 'package:homecare_app/core/notifications/notification_service.dart';
+import 'package:homecare_app/features/app_shell/presentation/authenticated_shell.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/screens/register_screen.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,11 +46,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Sửa: Dùng state.message thay cho state.error
                 SnackBar(content: Text(state.message)),
               );
-          } else if (state is Authenticated) { // Sửa: Dùng Authenticated thay cho AuthSuccess
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Login Successful!')),
+          } else if (state is Authenticated) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(content: Text('Login Successful!')),
+              );
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider(
+                  create: (_) => TaskBloc(
+                    notificationService: sl<NotificationService>(),
+                  ),
+                  child: AuthenticatedShell(session: state.session),
+                ),
+              ),
+              (route) => false,
             );
-            // TODO: Điều hướng đến màn hình chính tại đây
           }
         },
         builder: (context, state) {
