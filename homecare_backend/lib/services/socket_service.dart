@@ -52,7 +52,9 @@ class SocketIOServerAdapter implements SocketServerAdapter {
 class _SocketIORoomAdapter implements SocketRoom {
   _SocketIORoomAdapter(this._room);
 
-  final io.BroadcastOperator _room;
+  // socket_io 1.0.1 returns a Namespace from [Server.to], so keep this dynamic
+  // to support the older API surface.
+  final dynamic _room;
 
   @override
   void emit(String event, dynamic data) {

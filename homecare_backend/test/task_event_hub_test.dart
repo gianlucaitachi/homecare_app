@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:homecare_backend/services/task_event_hub.dart';
+import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -38,11 +39,25 @@ class _TestWebSocketSink implements WebSocketSink {
   Future<void> get done => _doneCompleter.future;
 }
 
-class _TestWebSocketChannel extends WebSocketChannel {
+class _TestWebSocketChannel
+    with StreamChannelMixin<dynamic>
+    implements WebSocketChannel {
   _TestWebSocketChannel() : _controller = StreamController<dynamic>();
 
   final StreamController<dynamic> _controller;
   final _sink = _TestWebSocketSink();
+
+  @override
+  int? get closeCode => null;
+
+  @override
+  String? get closeReason => null;
+
+  @override
+  String? get protocol => null;
+
+  @override
+  Future<void> get ready => Future.value();
 
   @override
   Stream<dynamic> get stream => _controller.stream;
@@ -54,6 +69,7 @@ class _TestWebSocketChannel extends WebSocketChannel {
 
   void close() {
     _controller.close();
+    unawaited(_sink.close());
   }
 
   void addError(Object error) {
