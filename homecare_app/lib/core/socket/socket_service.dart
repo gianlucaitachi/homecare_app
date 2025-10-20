@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../constants/storage_keys.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 typedef SocketFactory = SocketClient Function(String uri, Map<String, dynamic> options);
@@ -87,7 +89,7 @@ class SocketService {
       _socket = null;
     }
 
-    final token = await _secureStorage.read(key: 'access_token');
+    final token = await _secureStorage.read(key: StorageKeys.accessToken);
     _socket = _socketFactory(baseUrl, <String, dynamic>{
       'transports': ['websocket'],
       'extraHeaders': token != null ? {'Authorization': 'Bearer $token'} : null,
