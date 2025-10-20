@@ -7,6 +7,7 @@ class UserModel extends User {
     required super.id,
     required super.name,
     required super.email,
+    required super.familyId,
   });
 
   /// Factory constructor để tạo một UserModel từ một Map (JSON).
@@ -16,6 +17,16 @@ class UserModel extends User {
       id: json['id'] as String,
       name: json['name'] as String,
       email: json['email'] as String,
+      familyId: json['familyId'] as String,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'familyId': familyId,
+    };
   }
 }

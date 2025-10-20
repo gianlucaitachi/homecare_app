@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'screens/task_list_screen.dart';
+
 class TasksModule extends StatelessWidget {
-  const TasksModule({super.key});
+  const TasksModule({super.key, required this.familyId});
+
+  final String familyId;
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: AppBar(title: Text('Tasks')),
-      body: Center(
-        child: Text('Tasks module is under construction'),
-      ),
-    );
+    return TaskListScreen(familyId: familyId);
   }
 }

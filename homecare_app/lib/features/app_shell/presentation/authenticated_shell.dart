@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
+import 'package:homecare_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:homecare_app/features/dashboard/presentation/dashboard_module.dart';
 import 'package:homecare_app/features/tasks/presentation/tasks_module.dart';
 
 class AuthenticatedShell extends StatefulWidget {
-  const AuthenticatedShell({super.key});
+  const AuthenticatedShell({super.key, required this.session});
+
+  final AuthSession session;
 
   @override
   State<AuthenticatedShell> createState() => _AuthenticatedShellState();
@@ -23,28 +27,53 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
       selectedIcon: Icon(Icons.checklist),
       label: 'Tasks',
     ),
+    NavigationDestination(
+      icon: Icon(Icons.chat_bubble_outline),
+      selectedIcon: Icon(Icons.chat),
+      label: 'Chat',
+    ),
   ];
 
-  final List<Widget> _modules = const [
-    DashboardModule(),
-    TasksModule(),
-  ];
+  List<Widget> get _pages {
+    final user = widget.session.user;
+    return [
+      DashboardModule(
+        key: const PageStorageKey('dashboard'),
+        user: user,
+        onViewTasks: () => _onDestinationSelected(1),
+        onOpenChat: () => _onDestinationSelected(2),
+      ),
+      TasksModule(
+        key: const PageStorageKey('tasks'),
+        familyId: user.familyId,
+      ),
+      ChatScreen(
+        key: const PageStorageKey('chat'),
+        familyId: user.familyId,
+        currentUserId: user.id,
+      ),
+    ];
+  }
+
+  void _onDestinationSelected(int index) {
+    if (_currentIndex != index) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _modules,
+        children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         destinations: _destinations,
-        onDestinationSelected: (index) {
-          if (_currentIndex != index) {
-            setState(() => _currentIndex = index);
-          }
-        },
+        onDestinationSelected: _onDestinationSelected,
       ),
     );
   }

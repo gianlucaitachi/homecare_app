@@ -1,12 +1,13 @@
-
 // Đây là "hợp đồng" (abstract class) định nghĩa các chức năng
 // mà lớp repository xác thực phải có.
+import '../entities/auth_session.dart';
+
 abstract class AuthRepository {
   // Hàm đăng nhập
-  Future<void> login({required String email, required String password});
+  Future<AuthSession> login({required String email, required String password});
 
   // Hàm đăng ký
-  Future<void> register({
+  Future<AuthSession> register({
     required String name,
     required String email,
     required String password,
@@ -15,6 +16,6 @@ abstract class AuthRepository {
   // Hàm đăng xuất
   Future<void> logout();
 
-  // Kiểm tra xem có phiên đăng nhập hợp lệ không
-  Future<bool> hasValidSession();
+  // Phục hồi phiên đăng nhập đã lưu
+  Future<AuthSession?> restoreSession();
 }

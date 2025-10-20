@@ -17,9 +17,12 @@ class AuthLoading extends AuthState {}
 // Trạng thái xác thực thành công
 // Đây chính là trạng thái thay thế cho 'AuthSuccess' mà code của bạn đang báo lỗi.
 class Authenticated extends AuthState {
-  // Có thể chứa thông tin user nếu cần
-  // final UserEntity user;
-  // const Authenticated(this.user);
+  const Authenticated(this.session);
+
+  final AuthSession session;
+
+  @override
+  List<Object> get props => [session];
 }
 
 // Trạng thái chưa xác thực (ví dụ: sau khi đăng xuất hoặc lần đầu mở app)
