@@ -55,7 +55,7 @@ void main() {
         storage.clear();
       });
 
-      apiClient = ApiClient('https://example.com/api', secureStorage);
+      apiClient = ApiClient('https://example.com', secureStorage);
       fakeServer = _FakeServerAdapter();
       apiClient.httpClientAdapter = fakeServer;
 

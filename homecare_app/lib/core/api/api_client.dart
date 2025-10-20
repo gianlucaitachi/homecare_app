@@ -10,7 +10,9 @@ class ApiClient {
   final FlutterSecureStorage _secureStorage;
 
   ApiClient(String baseUrl, this._secureStorage)
-      : _dio = Dio(BaseOptions(baseUrl: baseUrl)) {
+      : _dio = Dio(
+          BaseOptions(baseUrl: _normalizeBaseUrl(baseUrl)),
+        ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         // 1. Tự động thêm access token vào header
@@ -24,7 +26,10 @@ class ApiClient {
 
         // 2. Xử lý lỗi, đặc biệt là lỗi 401 để refresh token
         onError: (DioError e, handler) async {
-          if (e.response?.statusCode == 401 && e.requestOptions.path != '/auth/refresh') {
+          final refreshPath = _resolvePath('auth/refresh');
+          final isRefreshRequest =
+              e.requestOptions.path == refreshPath || e.requestOptions.path == '/$refreshPath';
+          if (e.response?.statusCode == 401 && !isRefreshRequest) {
             try {
               final refreshToken = await _secureStorage.read(key: StorageKeys.refreshToken);
               if (refreshToken == null) {
@@ -33,7 +38,10 @@ class ApiClient {
               }
 
               // Gọi API để lấy token mới
-              final response = await _dio.post('/auth/refresh', data: {'refreshToken': refreshToken});
+              final response = await _dio.post(
+                refreshPath,
+                data: {'refreshToken': refreshToken},
+              );
 
               final newAccessToken = response.data['accessToken'] as String?;
               final newRefreshToken = response.data['refreshToken'] as String?;
@@ -46,11 +54,11 @@ class ApiClient {
                 // Cập nhật header của request đã lỗi và thử lại
                 final updatedOptions = e.requestOptions;
                 updatedOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-                
+
                 final clonedRequest = await _dio.fetch(updatedOptions);
                 return handler.resolve(clonedRequest);
               } else {
-                 return handler.next(e);
+                return handler.next(e);
               }
 
             } on DioError {
@@ -67,10 +75,13 @@ class ApiClient {
   }
 
   // Các phương thức để DataSource sử dụng
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) => _dio.get(path, queryParameters: queryParameters);
-  Future<Response> post(String path, {dynamic data}) => _dio.post(path, data: data);
-  Future<Response> put(String path, {dynamic data}) => _dio.put(path, data: data);
-  Future<Response> delete(String path) => _dio.delete(path);
+  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) =>
+      _dio.get(_resolvePath(path), queryParameters: queryParameters);
+  Future<Response> post(String path, {dynamic data}) =>
+      _dio.post(_resolvePath(path), data: data);
+  Future<Response> put(String path, {dynamic data}) =>
+      _dio.put(_resolvePath(path), data: data);
+  Future<Response> delete(String path) => _dio.delete(_resolvePath(path));
 
   /// Allow callers (primarily tests or dependency setup) to register
   /// additional interceptors such as logging utilities.
@@ -78,4 +89,18 @@ class ApiClient {
 
   /// Exposes a way for tests to inject a mocked [HttpClientAdapter].
   set httpClientAdapter(HttpClientAdapter adapter) => _dio.httpClientAdapter = adapter;
+
+  static String _normalizeBaseUrl(String baseUrl) {
+    return baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
+  }
+
+  static String _resolvePath(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) {
+      return 'api';
+    }
+
+    final sanitized = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    return sanitized.startsWith('api/') ? sanitized : 'api/$sanitized';
+  }
 }

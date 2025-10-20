@@ -7,7 +7,7 @@ class ChatRemoteDataSource {
   final ApiClient _apiClient;
 
   Future<List<ChatMessage>> fetchMessages(String familyId) async {
-    final response = await _apiClient.get('/families/$familyId/messages');
+    final response = await _apiClient.get('api/families/$familyId/messages');
     final data = response.data as Map<String, dynamic>;
     final messages = data['messages'] as List<dynamic>? ?? [];
     return messages
@@ -21,7 +21,7 @@ class ChatRemoteDataSource {
     required String content,
   }) async {
     final response = await _apiClient.post(
-      '/families/$familyId/messages',
+      'api/families/$familyId/messages',
       data: {'senderId': senderId, 'content': content},
     );
     final data = response.data as Map<String, dynamic>;

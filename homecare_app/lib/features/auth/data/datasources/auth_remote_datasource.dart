@@ -22,7 +22,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<Response> login({required String email, required String password}) async {
     try {
       final response = await _apiClient.post(
-        '/auth/login',
+        'api/auth/login',
         data: {
           'email': email,
           'password': password,
@@ -40,7 +40,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       {required String name, required String email, required String password}) async {
     try {
       final response = await _apiClient.post(
-        '/auth/register',
+        'api/auth/register',
         data: {
           'name': name,
           'email': email,
