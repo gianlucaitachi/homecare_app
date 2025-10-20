@@ -9,10 +9,9 @@ import 'package:homecare_backend/controllers/chat_controller.dart';
 import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
-import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
-import 'package:homecare_backend/controllers/auth_controller.dart';
-import 'package:homecare_backend/controllers/task_controller.dart';
+import 'package:homecare_backend/repositories/user_repository.dart';
+import 'package:homecare_backend/services/socket_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
 
 Future<void> main(List<String> args) async {
@@ -23,11 +22,16 @@ Future<void> main(List<String> args) async {
   // 2. Khởi tạo các Repository
   final userRepository = PostgresUserRepository(dbClient);
   final taskRepository = PostgresTaskRepository(dbClient);
+  final messageRepository = PostgresMessageRepository(dbClient);
 
   // 4. Khởi tạo các Controller với Repository tương ứng
   final authController = AuthController(userRepository);
   final taskEventHub = TaskEventHub();
   final taskController = TaskController(taskRepository, taskEventHub);
+  final socketAdapter = SocketIOServerAdapter();
+  final socketService =
+      SocketService(server: socketAdapter, messageRepository: messageRepository);
+  final chatController = ChatController(messageRepository, socketService);
 
   // 5. Thiết lập các routes
   final app = Router();
@@ -41,6 +45,8 @@ Future<void> main(List<String> args) async {
 
   app.mount('/api/tasks', taskController.router);
   app.get('/ws/tasks', taskController.socketHandler);
+
+  socketService.initialize();
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
