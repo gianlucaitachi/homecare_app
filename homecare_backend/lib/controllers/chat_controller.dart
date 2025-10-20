@@ -16,18 +16,37 @@ class ChatController {
   final SocketService _socketService;
 
   Future<Response> getMessages(Request request, String familyId) async {
-    if (request.authenticatedUserId == null) {
+    final authContext = request.context['auth'] as AuthContext?;
+    if (authContext == null) {
       return _unauthorizedResponse();
     }
 
-    final messages = await _messageRepository.getMessagesByFamily(familyId);
+    if (authContext.familyId != familyId) {
+      return Response.forbidden(
+        jsonEncode({'error': 'family_id_mismatch'}),
+      );
+    }
+
+    final messages =
+        await _messageRepository.getMessagesByFamily(authContext.familyId);
     final payload = messages.map((message) => message.toJson()).toList();
     return Response.ok(jsonEncode({'messages': payload}));
   }
 
   Future<Response> postMessage(Request request, String familyId) async {
-    final senderId = request.authenticatedUserId;
-    if (senderId == null) {
+    final authContext = request.context['auth'] as AuthContext?;
+    if (authContext == null) {
+      return _unauthorizedResponse();
+    }
+
+    if (authContext.familyId != familyId) {
+      return Response.forbidden(
+        jsonEncode({'error': 'family_id_mismatch'}),
+      );
+    }
+
+    final senderId = authContext.userId;
+    if (senderId.isEmpty) {
       return _unauthorizedResponse();
     }
 
@@ -43,7 +62,7 @@ class ChatController {
     }
 
     final message = await _messageRepository.createMessage(
-      familyId: familyId,
+      familyId: authContext.familyId,
       senderId: senderId,
       content: content,
     );

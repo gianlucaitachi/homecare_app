@@ -53,8 +53,7 @@ class PostgresTaskRepository implements TaskRepository {
   Future<List<Task>> listTasks({required String familyId}) async {
     final results = await _conn.execute(
       Sql.named(
-        'SELECT * FROM tasks WHERE family_id = @familyId '
-        'ORDER BY due_date NULLS LAST, created_at DESC',
+        'SELECT * FROM tasks WHERE family_id = @familyId ORDER BY due_date NULLS LAST, created_at DESC',
       ),
       parameters: {'familyId': familyId},
     );
@@ -70,10 +69,7 @@ class PostgresTaskRepository implements TaskRepository {
       Sql.named(
         'SELECT * FROM tasks WHERE id = @id AND family_id = @familyId LIMIT 1',
       ),
-      parameters: {
-        'id': id,
-        'familyId': familyId,
-      },
+      parameters: {'id': id, 'familyId': familyId},
     );
     if (results.isEmpty) return null;
     return Task.fromRow(results.first.toColumnMap());
@@ -92,8 +88,7 @@ class PostgresTaskRepository implements TaskRepository {
 
     final results = await _conn.execute(
       Sql.named(
-        'INSERT INTO tasks (id, family_id, assigned_user_id, title, description, '
-        'due_date, qr_payload, qr_image_base64) '
+        'INSERT INTO tasks (id, family_id, assigned_user_id, title, description, due_date, qr_payload, qr_image_base64) '
         'VALUES (@id, @familyId, @assignedUserId, @title, @description, @dueDate, @qrPayload, @qrImage) '
         'RETURNING *',
       ),

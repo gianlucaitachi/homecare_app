@@ -40,8 +40,7 @@ class PostgresUserRepository implements UserRepository {
   Future<User?> _findUserBy({required String column, required Object value}) async {
     final result = await _conn.execute(
       Sql.named(
-        'SELECT id, name, email, password_hash, family_id '
-        'FROM users WHERE $column = @value LIMIT 1',
+        'SELECT id, name, email, password_hash, family_id FROM users WHERE $column = @value LIMIT 1',
       ),
       parameters: {'value': value},
     );
@@ -73,8 +72,7 @@ class PostgresUserRepository implements UserRepository {
       if (familyName != null) {
         await session.execute(
           Sql.named(
-            'INSERT INTO families (id, name) VALUES (@familyId, @familyName) '
-            'ON CONFLICT (id) DO NOTHING',
+            'INSERT INTO families (id, name) VALUES (@familyId, @familyName) ON CONFLICT (id) DO NOTHING',
           ),
           parameters: {
             'familyId': familyId,
@@ -85,8 +83,7 @@ class PostgresUserRepository implements UserRepository {
 
       await session.execute(
         Sql.named(
-          'INSERT INTO users (id, name, email, password_hash, family_id) '
-          'VALUES (@id, @name, @email, @hash, @familyId)',
+          'INSERT INTO users (id, name, email, password_hash, family_id) VALUES (@id, @name, @email, @hash, @familyId)',
         ),
         parameters: {
           'id': id,

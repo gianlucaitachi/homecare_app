@@ -1,6 +1,8 @@
 import 'package:postgres/postgres.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:postgres/postgres.dart';
+
 import '../db/database.dart';
 import '../models/message_model.dart';
 
@@ -27,8 +29,7 @@ class PostgresMessageRepository implements MessageRepository {
   Future<List<Message>> getMessagesByFamily(String familyId) async {
     final result = await _conn.execute(
       Sql.named(
-        'SELECT id, family_id, sender_id, content, created_at '
-        'FROM messages WHERE family_id = @familyId ORDER BY created_at ASC',
+        'SELECT id, family_id, sender_id, content, created_at FROM messages WHERE family_id = @familyId ORDER BY created_at ASC',
       ),
       parameters: {'familyId': familyId},
     );
@@ -48,9 +49,7 @@ class PostgresMessageRepository implements MessageRepository {
 
     final result = await _conn.execute(
       Sql.named(
-        'INSERT INTO messages (id, family_id, sender_id, content) '
-        'VALUES (@id, @familyId, @senderId, @content) '
-        'RETURNING id, family_id, sender_id, content, created_at',
+        'INSERT INTO messages (id, family_id, sender_id, content) VALUES (@id, @familyId, @senderId, @content) RETURNING id, family_id, sender_id, content, created_at',
       ),
       parameters: {
         'id': messageId,

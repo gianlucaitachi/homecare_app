@@ -9,11 +9,11 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
-  final dbClient = DatabaseManager.instance;
+  final db = DatabaseManager.fromEnv();
   var exitCodeValue = 0;
 
   try {
-    await dbClient.connect();
+    await db.open();
 
     final migrationFiles = await migrationsDir
         .list()
@@ -36,7 +36,7 @@ Future<void> main(List<String> args) async {
         if (statement.trim().isEmpty) {
           continue;
         }
-        await dbClient.conn.execute(statement, ignoreRows: true);
+        await db.conn.execute(statement);
       }
     }
 
@@ -46,7 +46,7 @@ Future<void> main(List<String> args) async {
     stderr.writeln('Migration failed: $error');
     stderr.writeln(stackTrace);
   } finally {
-    await dbClient.close();
+    await db.close();
   }
 
   if (exitCodeValue != 0) {
@@ -87,7 +87,8 @@ List<String> _splitSqlStatements(String sql) {
       while (index < sql.length &&
           sql[index] != '
 ' &&
-          sql[index] != '') {
+          sql[index] != '
+') {
         index++;
       }
       continue;
