@@ -48,11 +48,21 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> register(
       {required String name, required String email, required String password}) async {
     try {
-      await _remoteDataSource.register(
+      final response = await _remoteDataSource.register(
         name: name,
         email: email,
         password: password,
       );
+
+      final accessToken = response.data['accessToken'];
+      final refreshToken = response.data['refreshToken'];
+
+      if (accessToken == null || refreshToken == null) {
+        throw 'Server response is missing tokens';
+      }
+
+      await _secureStorage.write(key: 'access_token', value: accessToken);
+      await _secureStorage.write(key: 'refresh_token', value: refreshToken);
     } on DioException catch (e) {
       if (e.response?.statusCode == 409) {
         throw 'A user with this email already exists.';
@@ -72,8 +82,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> hasValidSession() async {
-    final accessToken = await _secureStorage.read(key: 'accessToken');
-    final refreshToken = await _secureStorage.read(key: 'refreshToken');
+    final accessToken = await _secureStorage.read(key: 'access_token');
+    final refreshToken = await _secureStorage.read(key: 'refresh_token');
 
     final hasAccessToken = accessToken != null && accessToken.isNotEmpty;
     final hasRefreshToken = refreshToken != null && refreshToken.isNotEmpty;
