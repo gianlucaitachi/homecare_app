@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../constants/storage_keys.dart';
+
 /// Một trình bao bọc (wrapper) cho Dio để quản lý các request, interceptor,
 /// và logic tự động làm mới token.
 class ApiClient {
@@ -13,7 +15,7 @@ class ApiClient {
       InterceptorsWrapper(
         // 1. Tự động thêm access token vào header
         onRequest: (options, handler) async {
-          final accessToken = await _secureStorage.read(key: 'access_token');
+          final accessToken = await _secureStorage.read(key: StorageKeys.accessToken);
           if (accessToken != null) {
             options.headers['Authorization'] = 'Bearer $accessToken';
           }
@@ -24,7 +26,7 @@ class ApiClient {
         onError: (DioError e, handler) async {
           if (e.response?.statusCode == 401 && e.requestOptions.path != '/auth/refresh') {
             try {
-              final refreshToken = await _secureStorage.read(key: 'refresh_token');
+              final refreshToken = await _secureStorage.read(key: StorageKeys.refreshToken);
               if (refreshToken == null) {
                 // Không có refresh token, không thể làm gì hơn
                 return handler.next(e);
@@ -38,8 +40,8 @@ class ApiClient {
 
               if (newAccessToken != null && newRefreshToken != null) {
                 // Lưu token mới
-                await _secureStorage.write(key: 'access_token', value: newAccessToken);
-                await _secureStorage.write(key: 'refresh_token', value: newRefreshToken);
+                await _secureStorage.write(key: StorageKeys.accessToken, value: newAccessToken);
+                await _secureStorage.write(key: StorageKeys.refreshToken, value: newRefreshToken);
 
                 // Cập nhật header của request đã lỗi và thử lại
                 final updatedOptions = e.requestOptions;

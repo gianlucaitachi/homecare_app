@@ -1,6 +1,7 @@
 
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:homecare_app/core/constants/storage_keys.dart';
 import 'package:homecare_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:homecare_app/features/auth/domain/repositories/auth_repository.dart';
 
@@ -28,8 +29,8 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       // Lưu token vào secure storage
-      await _secureStorage.write(key: 'access_token', value: accessToken);
-      await _secureStorage.write(key: 'refresh_token', value: refreshToken);
+      await _secureStorage.write(key: StorageKeys.accessToken, value: accessToken);
+      await _secureStorage.write(key: StorageKeys.refreshToken, value: refreshToken);
 
     } on DioException catch (e) {
       // Xử lý lỗi từ Dio
@@ -72,8 +73,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> hasValidSession() async {
-    final accessToken = await _secureStorage.read(key: 'accessToken');
-    final refreshToken = await _secureStorage.read(key: 'refreshToken');
+    final accessToken = await _secureStorage.read(key: StorageKeys.accessToken);
+    final refreshToken = await _secureStorage.read(key: StorageKeys.refreshToken);
 
     final hasAccessToken = accessToken != null && accessToken.isNotEmpty;
     final hasRefreshToken = refreshToken != null && refreshToken.isNotEmpty;
