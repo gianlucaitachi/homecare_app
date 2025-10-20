@@ -7,24 +7,37 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dio/dio.dart';
-import 'package:homecare_app/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
 
-import 'package:homecare_app/main.dart';
+import 'helpers/mock_auth_bloc.dart';
 
 void main() {
-  testWidgets('Login screen UI test', (WidgetTester tester) async {
-    // Create a Dio instance for the repository
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
-    // Create the repository instance
-    final authRepository = AuthRepositoryImpl(dio);
+  setUpAll(registerAuthFallbackValues);
 
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp(authRepository: authRepository));
+  testWidgets('Login screen UI test', (WidgetTester tester) async {
+    final mockBloc = MockAuthBloc();
+    final state = Unauthenticated();
+
+    when(() => mockBloc.state).thenReturn(state);
+    whenListen(mockBloc, Stream<AuthState>.value(state), initialState: state);
+
+    // Build the login screen within a BlocProvider context.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider<AuthBloc>.value(
+          value: mockBloc,
+          child: const LoginScreen(),
+        ),
+      ),
+    );
 
     // Verify that the Login screen is displayed
     expect(find.text('Login'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));
     expect(find.byType(ElevatedButton), findsOneWidget);
+
+    addTearDown(mockBloc.close);
   });
 }
