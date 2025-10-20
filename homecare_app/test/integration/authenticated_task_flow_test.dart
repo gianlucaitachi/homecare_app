@@ -9,6 +9,8 @@ import 'package:homecare_app/core/api/api_client.dart';
 import 'package:homecare_app/core/constants/storage_keys.dart';
 import 'package:homecare_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:homecare_app/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:homecare_app/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:homecare_app/features/chat/data/models/chat_message.dart';
 import 'package:homecare_app/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 
@@ -23,6 +25,7 @@ void main() {
     late AuthRepositoryImpl authRepository;
     late AuthRemoteDataSourceImpl authRemoteDataSource;
     late TaskRemoteDataSource taskRemoteDataSource;
+    late ChatRemoteDataSource chatRemoteDataSource;
     late _FakeServerAdapter fakeServer;
     late Map<String, String?> storage;
 
@@ -62,9 +65,10 @@ void main() {
         secureStorage: secureStorage,
       );
       taskRemoteDataSource = TaskRemoteDataSourceImpl(apiClient: apiClient);
+      chatRemoteDataSource = ChatRemoteDataSource(apiClient: apiClient);
     });
 
-    testWidgets('logs in and performs authenticated task requests', (tester) async {
+    testWidgets('logs in and performs authenticated task and chat requests', (tester) async {
       await authRepository.login(email: 'alice@example.com', password: 'secret');
 
       final tasks = await taskRemoteDataSource.fetchTasks();
@@ -79,9 +83,15 @@ void main() {
       expect(createdTask.id, equals('task-2'));
       expect(createdTask.title, equals('New task'));
 
+      final messages = await chatRemoteDataSource.fetchMessages('family-1');
+      expect(messages, hasLength(1));
+      expect(messages.single, isA<ChatMessage>());
+      expect(messages.single.content, equals('Hello from the family chat!'));
+
       expect(fakeServer.unauthorizedCount, equals(1));
       expect(fakeServer.fetchSuccessCount, equals(1));
       expect(fakeServer.createSuccessCount, equals(1));
+      expect(fakeServer.messagesSuccessCount, equals(1));
       expect(storage[StorageKeys.accessToken], equals(_FakeServerAdapter.refreshedAccessToken));
       expect(storage[StorageKeys.refreshToken], equals(_FakeServerAdapter.refreshedRefreshToken));
     });
@@ -97,6 +107,7 @@ class _FakeServerAdapter extends HttpClientAdapter {
   int unauthorizedCount = 0;
   int fetchSuccessCount = 0;
   int createSuccessCount = 0;
+  int messagesSuccessCount = 0;
   bool _hasSentUnauthorizedForFetch = false;
 
   @override
@@ -104,9 +115,9 @@ class _FakeServerAdapter extends HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(RequestOptions options, Stream<List<int>>? requestStream, Future? cancelFuture) async {
-    final path = options.path;
+    final path = options.uri.path;
 
-    if (options.method == 'POST' && path == '/auth/login') {
+    if (options.method == 'POST' && path == '/api/auth/login') {
       return ResponseBody.fromString(
         jsonEncode({
           'accessToken': initialAccessToken,
@@ -118,7 +129,7 @@ class _FakeServerAdapter extends HttpClientAdapter {
       );
     }
 
-    if (options.method == 'POST' && path == '/auth/refresh') {
+    if (options.method == 'POST' && path == '/api/auth/refresh') {
       return ResponseBody.fromString(
         jsonEncode({
           'accessToken': refreshedAccessToken,
@@ -129,7 +140,7 @@ class _FakeServerAdapter extends HttpClientAdapter {
       );
     }
 
-    if (path == '/tasks' && options.method == 'GET') {
+    if (path == '/api/tasks' && options.method == 'GET') {
       final authHeader = options.headers['Authorization'] as String?;
       if (!_hasSentUnauthorizedForFetch && authHeader == 'Bearer $initialAccessToken') {
         _hasSentUnauthorizedForFetch = true;
@@ -150,7 +161,7 @@ class _FakeServerAdapter extends HttpClientAdapter {
       return ResponseBody.fromString('Unauthorized', 401, headers: _jsonHeaders);
     }
 
-    if (path == '/tasks' && options.method == 'POST') {
+    if (path == '/api/tasks' && options.method == 'POST') {
       final authHeader = options.headers['Authorization'] as String?;
       if (authHeader != 'Bearer $refreshedAccessToken') {
         unauthorizedCount += 1;
@@ -161,6 +172,21 @@ class _FakeServerAdapter extends HttpClientAdapter {
       return ResponseBody.fromString(
         jsonEncode({'task': _createdTaskJson(options.data)}),
         201,
+        headers: _jsonHeaders,
+      );
+    }
+
+    if (path == '/api/families/family-1/messages' && options.method == 'GET') {
+      final authHeader = options.headers['Authorization'] as String?;
+      if (authHeader != 'Bearer $refreshedAccessToken') {
+        unauthorizedCount += 1;
+        return ResponseBody.fromString('Unauthorized', 401, headers: _jsonHeaders);
+      }
+
+      messagesSuccessCount += 1;
+      return ResponseBody.fromString(
+        jsonEncode({'messages': [_messageJson]}),
+        200,
         headers: _jsonHeaders,
       );
     }
@@ -206,6 +232,17 @@ class _FakeServerAdapter extends HttpClientAdapter {
       'createdAt': timestamp,
       'updatedAt': timestamp,
       'completedAt': null,
+    };
+  }
+
+  static Map<String, dynamic> get _messageJson {
+    const timestamp = '2024-01-02T09:30:00.000Z';
+    return {
+      'id': 'message-1',
+      'familyId': 'family-1',
+      'senderId': 'user-1',
+      'content': 'Hello from the family chat!',
+      'createdAt': timestamp,
     };
   }
 }
