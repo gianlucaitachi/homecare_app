@@ -1,14 +1,21 @@
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_state.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_detail_cubit.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_detail_state.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockTaskRepository extends Mock implements TaskRepository {}
+class _MockTaskBloc extends MockBloc<TaskEvent, TaskState> implements TaskBloc {}
+class _FakeTaskEvent extends Fake implements TaskEvent {}
 
 void main() {
   late _MockTaskRepository repository;
+  late _MockTaskBloc taskBloc;
   late TaskDetailCubit cubit;
   final task = Task(
     id: 'task-1',
@@ -25,10 +32,20 @@ void main() {
     completedAt: null,
   );
 
+  setUpAll(() {
+    registerFallbackValue(_FakeTaskEvent());
+  });
+
   setUp(() {
     repository = _MockTaskRepository();
+    taskBloc = _MockTaskBloc();
+    when(() => taskBloc.stream).thenAnswer((_) => const Stream.empty());
     when(() => repository.close()).thenAnswer((_) async {});
-    cubit = TaskDetailCubit(repository: repository, taskId: task.id);
+    cubit = TaskDetailCubit(
+      repository: repository,
+      taskBloc: taskBloc,
+      taskId: task.id,
+    );
   });
 
   tearDown(() async {
@@ -71,5 +88,11 @@ void main() {
         actionMessage: 'Task completed',
       ),
     );
+
+    verify(
+      () => taskBloc.add(
+        any(that: isA<TaskUpdated>()),
+      ),
+    ).called(1);
   });
 }

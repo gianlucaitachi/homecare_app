@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_detail_cubit.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_detail_state.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_form_cubit.dart';
@@ -17,9 +18,11 @@ class TaskDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final taskBloc = context.read<TaskBloc>();
     return BlocProvider(
       create: (_) => TaskDetailCubit(
         repository: sl<TaskRepository>(),
+        taskBloc: taskBloc,
         taskId: taskId,
       )..load(),
       child: _TaskDetailView(taskId: taskId),
@@ -158,10 +161,15 @@ class _TaskDetailView extends StatelessWidget {
 
   Future<void> _openEdit(BuildContext context, Task task) async {
     final repository = sl<TaskRepository>();
+    final taskBloc = context.read<TaskBloc>();
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BlocProvider(
-          create: (_) => TaskFormCubit(repository: repository, initialTask: task),
+          create: (_) => TaskFormCubit(
+            repository: repository,
+            taskBloc: taskBloc,
+            initialTask: task,
+          ),
           child: TaskFormScreen(initialTask: task),
         ),
       ),

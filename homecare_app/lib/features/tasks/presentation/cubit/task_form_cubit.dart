@@ -1,17 +1,22 @@
 import 'package:bloc/bloc.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart';
 
 import 'task_form_state.dart';
 
 class TaskFormCubit extends Cubit<TaskFormState> {
   TaskFormCubit({
     required TaskRepository repository,
+    required TaskBloc taskBloc,
     this.initialTask,
   })  : _repository = repository,
+        _taskBloc = taskBloc,
         super(TaskFormState(result: initialTask));
 
   final TaskRepository _repository;
+  final TaskBloc _taskBloc;
   final Task? initialTask;
 
   bool get isEditing => initialTask != null;
@@ -32,6 +37,13 @@ class TaskFormCubit extends Cubit<TaskFormState> {
         dueDate: dueDate,
         assignedUserId: assignedUserId,
       );
+      if (initialTask == null) {
+        _taskBloc.add(TaskCreated(task));
+      } else {
+        _taskBloc.add(
+          TaskUpdated(previousTask: initialTask!, updatedTask: task),
+        );
+      }
       emit(
         state.copyWith(
           status: TaskFormStatus.success,

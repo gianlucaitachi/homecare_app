@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_list/task_list_bloc.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_list/task_list_event.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_list/task_list_state.dart';
@@ -17,9 +18,11 @@ class TaskListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final taskBloc = context.read<TaskBloc>();
     return BlocProvider(
       create: (_) => TaskListBloc(
         repository: sl<TaskRepository>(),
+        taskBloc: taskBloc,
         familyId: familyId,
       )..add(TaskListStarted(familyId: familyId)),
       child: const _TaskListView(),
@@ -77,10 +80,14 @@ class _TaskListView extends StatelessWidget {
   Future<void> _openCreate(BuildContext context) async {
     final repository = sl<TaskRepository>();
     final familyId = context.read<TaskListBloc>().familyId;
+    final taskBloc = context.read<TaskBloc>();
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BlocProvider(
-          create: (_) => TaskFormCubit(repository: repository),
+          create: (_) => TaskFormCubit(
+            repository: repository,
+            taskBloc: taskBloc,
+          ),
           child: TaskFormScreen(initialFamilyId: familyId),
         ),
       ),

@@ -1,17 +1,27 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
-import 'package:homecare_app/features/tasks/domain/entities/task_event.dart';
+import 'package:homecare_app/features/tasks/domain/entities/task_event.dart'
+    as domain_event;
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart'
+    as task_bloc_event;
 import 'package:homecare_app/features/tasks/presentation/bloc/task_list/task_list_bloc.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_list/task_list_event.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_list/task_list_state.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_state.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockTaskRepository extends Mock implements TaskRepository {}
+class _MockTaskBloc extends MockBloc<task_bloc_event.TaskEvent, TaskState>
+    implements TaskBloc {}
+
+class _FakeTaskEvent extends Fake implements task_bloc_event.TaskEvent {}
 
 void main() {
   late _MockTaskRepository repository;
+  late _MockTaskBloc taskBloc;
   final task = Task(
     id: 'task-1',
     familyId: 'family-1',
@@ -27,8 +37,14 @@ void main() {
     completedAt: null,
   );
 
+  setUpAll(() {
+    registerFallbackValue(_FakeTaskEvent());
+  });
+
   setUp(() {
     repository = _MockTaskRepository();
+    taskBloc = _MockTaskBloc();
+    when(() => taskBloc.stream).thenAnswer((_) => const Stream.empty());
     when(() => repository.close()).thenAnswer((_) async {});
   });
 
@@ -37,9 +53,9 @@ void main() {
     build: () {
       when(() => repository.fetchTasks(familyId: any(named: 'familyId')))
           .thenAnswer((_) async => [task]);
-      when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
-          .thenAnswer((_) => const Stream<TaskEvent>.empty());
-      return TaskListBloc(repository: repository);
+        when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
+            .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
+      return TaskListBloc(repository: repository, taskBloc: taskBloc);
     },
     act: (bloc) => bloc.add(const TaskListStarted()),
     expect: () => [
@@ -50,6 +66,11 @@ void main() {
       verify(() => repository.fetchTasks(familyId: any(named: 'familyId'))).called(1);
       verify(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
           .called(1);
+      verify(
+        () => taskBloc.add(
+          any(that: isA<task_bloc_event.TaskRemindersSynced>()),
+        ),
+      ).called(1);
     },
   );
 
@@ -58,19 +79,27 @@ void main() {
     build: () {
       when(() => repository.fetchTasks(familyId: any(named: 'familyId')))
           .thenAnswer((_) async => []);
-      when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
-          .thenAnswer((_) => const Stream<TaskEvent>.empty());
-      return TaskListBloc(repository: repository);
+        when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
+            .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
+      return TaskListBloc(repository: repository, taskBloc: taskBloc);
     },
     act: (bloc) async {
       bloc.add(const TaskListStarted());
       await Future<void>.delayed(Duration.zero);
-      bloc.add(TaskListTaskEventReceived(TaskEvent(type: TaskEventType.created, task: task)));
+      bloc.add(TaskListTaskEventReceived(
+          domain_event.TaskEvent(type: domain_event.TaskEventType.created, task: task)));
     },
     expect: () => [
       const TaskListState(status: TaskListStatus.loading),
       const TaskListState(status: TaskListStatus.success, tasks: []),
       TaskListState(status: TaskListStatus.success, tasks: [task]),
     ],
+    verify: (_) {
+      verify(
+        () => taskBloc.add(
+          any(that: isA<task_bloc_event.TaskCreated>()),
+        ),
+      ).called(1);
+    },
   );
 }

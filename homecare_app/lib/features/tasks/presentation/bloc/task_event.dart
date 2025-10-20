@@ -34,3 +34,12 @@ class TaskDeleted extends TaskEvent {
   @override
   List<Object?> get props => [task];
 }
+
+class TaskRemindersSynced extends TaskEvent {
+  const TaskRemindersSynced(this.tasks);
+
+  final List<Task> tasks;
+
+  @override
+  List<Object?> get props => [tasks];
+}
