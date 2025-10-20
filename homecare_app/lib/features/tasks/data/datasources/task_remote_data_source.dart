@@ -1,5 +1,4 @@
-import 'package:dio/dio.dart';
-
+import '../../../../core/api/api_client.dart';
 import '../../domain/entities/task.dart';
 import '../models/task_model.dart';
 
@@ -20,24 +19,21 @@ abstract class TaskRemoteDataSource {
 }
 
 class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
-  TaskRemoteDataSourceImpl({required Dio dio, required String apiBaseUrl})
-      : _dio = dio,
-        _apiBaseUrl = apiBaseUrl;
+  TaskRemoteDataSourceImpl({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  final Dio _dio;
-  final String _apiBaseUrl;
-
-  String get _tasksBase => '$_apiBaseUrl/tasks';
+  final ApiClient _apiClient;
 
   @override
   Future<TaskModel> assignTask(String id, String userId) async {
-    final response = await _dio.post('$_tasksBase/$id/assign', data: {'userId': userId});
+    final response =
+        await _apiClient.post('/tasks/$id/assign', data: {'userId': userId});
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
   @override
   Future<TaskModel> completeTaskByQrPayload(String payload) async {
-    final response = await _dio.post('$_tasksBase/complete-qr', data: {'payload': payload});
+    final response =
+        await _apiClient.post('/tasks/complete-qr', data: {'payload': payload});
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
@@ -57,25 +53,25 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       'assignedUserId': assignedUserId,
     }..removeWhere((key, value) => value == null);
 
-    final response = await _dio.post(_tasksBase, data: payload);
+    final response = await _apiClient.post('/tasks', data: payload);
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
   @override
   Future<void> deleteTask(String id) async {
-    await _dio.delete('$_tasksBase/$id');
+    await _apiClient.delete('/tasks/$id');
   }
 
   @override
   Future<TaskModel> fetchTask(String id) async {
-    final response = await _dio.get('$_tasksBase/$id');
+    final response = await _apiClient.get('/tasks/$id');
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
   @override
   Future<List<TaskModel>> fetchTasks({String? familyId}) async {
-    final response = await _dio.get(
-      _tasksBase,
+    final response = await _apiClient.get(
+      '/tasks',
       queryParameters: familyId == null ? null : {'familyId': familyId},
     );
     final data = response.data['tasks'] as List<dynamic>;
@@ -84,7 +80,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
 
   @override
   Future<TaskModel> updateTask(String id, Map<String, dynamic> payload) async {
-    final response = await _dio.put('$_tasksBase/$id', data: payload);
+    final response = await _apiClient.put('/tasks/$id', data: payload);
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 }

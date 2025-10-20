@@ -1,7 +1,7 @@
 
 import 'package:dio/dio.dart';
 
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/api/api_client.dart';
 
 abstract class AuthRemoteDataSource {
   Future<Response> login({required String email, required String password});
@@ -14,15 +14,15 @@ abstract class AuthRemoteDataSource {
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
-  final Dio _dio;
+  final ApiClient _apiClient;
 
-  AuthRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
+  AuthRemoteDataSourceImpl({required ApiClient apiClient}) : _apiClient = apiClient;
 
   @override
   Future<Response> login({required String email, required String password}) async {
     try {
-      final response = await _dio.post(
-        '${AppConstants.apiBaseUrl}/auth/login',
+      final response = await _apiClient.post(
+        '/auth/login',
         data: {
           'email': email,
           'password': password,
@@ -39,8 +39,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<Response> register(
       {required String name, required String email, required String password}) async {
     try {
-      final response = await _dio.post(
-        '${AppConstants.apiBaseUrl}/auth/register',
+      final response = await _apiClient.post(
+        '/auth/register',
         data: {
           'name': name,
           'email': email,

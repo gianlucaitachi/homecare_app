@@ -1,17 +1,13 @@
-import 'package:dio/dio.dart';
-
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/api/api_client.dart';
 import '../models/chat_message.dart';
 
 class ChatRemoteDataSource {
-  ChatRemoteDataSource({required Dio dio}) : _dio = dio;
+  ChatRemoteDataSource({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  final Dio _dio;
+  final ApiClient _apiClient;
 
   Future<List<ChatMessage>> fetchMessages(String familyId) async {
-    final response = await _dio.get(
-      '${AppConstants.apiBaseUrl}/families/$familyId/messages',
-    );
+    final response = await _apiClient.get('/families/$familyId/messages');
     final data = response.data as Map<String, dynamic>;
     final messages = data['messages'] as List<dynamic>? ?? [];
     return messages
@@ -24,12 +20,9 @@ class ChatRemoteDataSource {
     required String senderId,
     required String content,
   }) async {
-    final response = await _dio.post(
-      '${AppConstants.apiBaseUrl}/families/$familyId/messages',
-      data: {
-        'senderId': senderId,
-        'content': content,
-      },
+    final response = await _apiClient.post(
+      '/families/$familyId/messages',
+      data: {'senderId': senderId, 'content': content},
     );
     final data = response.data as Map<String, dynamic>;
     return ChatMessage.fromJson(Map<String, dynamic>.from(data['message'] as Map));

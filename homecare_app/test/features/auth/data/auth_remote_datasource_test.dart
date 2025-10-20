@@ -2,21 +2,21 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:homecare_app/core/constants/app_constants.dart';
+import 'package:homecare_app/core/api/api_client.dart';
 import 'package:homecare_app/features/auth/data/datasources/auth_remote_datasource.dart';
 
-class _MockDio extends Mock implements Dio {}
+class _MockApiClient extends Mock implements ApiClient {}
 
 void main() {
-  late _MockDio dio;
+  late _MockApiClient apiClient;
   late AuthRemoteDataSourceImpl dataSource;
 
   setUp(() {
-    dio = _MockDio();
-    dataSource = AuthRemoteDataSourceImpl(dio: dio);
+    apiClient = _MockApiClient();
+    dataSource = AuthRemoteDataSourceImpl(apiClient: apiClient);
   });
 
-  test('login posts to /api/auth/login', () async {
+  test('login posts to /auth/login', () async {
     final response = Response(
       data: {
         'accessToken': 'access',
@@ -24,12 +24,11 @@ void main() {
         'user': {'id': '1'},
       },
       statusCode: 200,
-      requestOptions:
-          RequestOptions(path: '${AppConstants.apiBaseUrl}/auth/login'),
+      requestOptions: RequestOptions(path: '/auth/login'),
     );
 
-    when(() => dio.post(
-          '${AppConstants.apiBaseUrl}/auth/login',
+    when(() => apiClient.post(
+          '/auth/login',
           data: any(named: 'data'),
         )).thenAnswer((_) async => response);
 
@@ -40,8 +39,8 @@ void main() {
 
     expect(result, same(response));
 
-    final verification = verify(() => dio.post(
-          '${AppConstants.apiBaseUrl}/auth/login',
+    final verification = verify(() => apiClient.post(
+          '/auth/login',
           data: captureAny(named: 'data'),
         ));
     verification.called(1);
@@ -49,18 +48,17 @@ void main() {
     expect(captured, equals({'email': 'alice@example.com', 'password': 'secret'}));
   });
 
-  test('register posts to /api/auth/register', () async {
+  test('register posts to /auth/register', () async {
     final response = Response(
       data: {
         'user': {'id': '1'},
       },
       statusCode: 200,
-      requestOptions:
-          RequestOptions(path: '${AppConstants.apiBaseUrl}/auth/register'),
+      requestOptions: RequestOptions(path: '/auth/register'),
     );
 
-    when(() => dio.post(
-          '${AppConstants.apiBaseUrl}/auth/register',
+    when(() => apiClient.post(
+          '/auth/register',
           data: any(named: 'data'),
         )).thenAnswer((_) async => response);
 
@@ -72,8 +70,8 @@ void main() {
 
     expect(result, same(response));
 
-    final verification = verify(() => dio.post(
-          '${AppConstants.apiBaseUrl}/auth/register',
+    final verification = verify(() => apiClient.post(
+          '/auth/register',
           data: captureAny(named: 'data'),
         ));
     verification.called(1);

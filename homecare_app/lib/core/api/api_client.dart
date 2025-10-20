@@ -71,4 +71,11 @@ class ApiClient {
   Future<Response> post(String path, {dynamic data}) => _dio.post(path, data: data);
   Future<Response> put(String path, {dynamic data}) => _dio.put(path, data: data);
   Future<Response> delete(String path) => _dio.delete(path);
+
+  /// Allow callers (primarily tests or dependency setup) to register
+  /// additional interceptors such as logging utilities.
+  void addInterceptor(Interceptor interceptor) => _dio.interceptors.add(interceptor);
+
+  /// Exposes a way for tests to inject a mocked [HttpClientAdapter].
+  set httpClientAdapter(HttpClientAdapter adapter) => _dio.httpClientAdapter = adapter;
 }

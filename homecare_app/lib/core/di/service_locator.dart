@@ -1,7 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:homecare_app/core/api/api_client.dart';
 import 'package:homecare_app/core/constants/app_constants.dart';
 import 'package:homecare_app/core/notifications/notification_service.dart';
 import 'package:homecare_app/core/socket/socket_service.dart';
@@ -37,9 +37,9 @@ void _registerExternalDependencies() {
     ..registerLazySingleton<FlutterSecureStorage>(
       () => const FlutterSecureStorage(),
     )
-    ..registerLazySingleton<Dio>(() {
-      final dio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
-      dio.interceptors.add(
+    ..registerLazySingleton<ApiClient>(() {
+      final apiClient = ApiClient(AppConstants.apiBaseUrl, sl());
+      apiClient.addInterceptor(
         PrettyDioLogger(
           requestHeader: true,
           requestBody: true,
@@ -50,7 +50,7 @@ void _registerExternalDependencies() {
           maxWidth: 90,
         ),
       );
-      return dio;
+      return apiClient;
     })
     ..registerLazySingleton<SocketService>(
       () => SocketService(sl()),
@@ -78,7 +78,7 @@ void _registerFeatureDependencies() {
       ),
     )
     ..registerLazySingleton<AuthRemoteDataSource>(
-      () => AuthRemoteDataSourceImpl(dio: sl()),
+      () => AuthRemoteDataSourceImpl(apiClient: sl()),
     );
 
   // Tasks
@@ -87,10 +87,7 @@ void _registerFeatureDependencies() {
       () => TaskSocketService(baseUrl: AppConstants.baseUrl),
     )
     ..registerLazySingleton<TaskRemoteDataSource>(
-      () => TaskRemoteDataSourceImpl(
-        dio: sl(),
-        apiBaseUrl: AppConstants.apiBaseUrl,
-      ),
+      () => TaskRemoteDataSourceImpl(apiClient: sl()),
     )
     ..registerLazySingleton<TaskRepository>(
       () => TaskRepositoryImpl(
@@ -103,7 +100,7 @@ void _registerFeatureDependencies() {
   // Chat
   sl
     ..registerLazySingleton<ChatRemoteDataSource>(
-      () => ChatRemoteDataSource(dio: sl()),
+      () => ChatRemoteDataSource(apiClient: sl()),
     )
     ..registerLazySingleton<ChatRepository>(
       () => ChatRepository(remoteDataSource: sl()),

@@ -2,22 +2,22 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:homecare_app/core/constants/app_constants.dart';
+import 'package:homecare_app/core/api/api_client.dart';
 import 'package:homecare_app/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:homecare_app/features/chat/data/models/chat_message.dart';
 
-class _MockDio extends Mock implements Dio {}
+class _MockApiClient extends Mock implements ApiClient {}
 
 void main() {
-  late _MockDio dio;
+  late _MockApiClient apiClient;
   late ChatRemoteDataSource dataSource;
 
   setUp(() {
-    dio = _MockDio();
-    dataSource = ChatRemoteDataSource(dio: dio);
+    apiClient = _MockApiClient();
+    dataSource = ChatRemoteDataSource(apiClient: apiClient);
   });
 
-  test('fetchMessages requests /api/families/<id>/messages and parses data', () async {
+  test('fetchMessages requests /families/<id>/messages and parses data', () async {
     final response = Response(
       data: {
         'messages': [
@@ -31,12 +31,11 @@ void main() {
         ],
       },
       statusCode: 200,
-      requestOptions:
-          RequestOptions(path: '${AppConstants.apiBaseUrl}/families/family-1/messages'),
+      requestOptions: RequestOptions(path: '/families/family-1/messages'),
     );
 
-    when(() => dio.get(
-          '${AppConstants.apiBaseUrl}/families/family-1/messages',
+    when(() => apiClient.get(
+          '/families/family-1/messages',
         )).thenAnswer((_) async => response);
 
     final messages = await dataSource.fetchMessages('family-1');
@@ -45,11 +44,11 @@ void main() {
     expect(messages.first, isA<ChatMessage>());
     expect(messages.first.content, equals('Hello'));
 
-    verify(() => dio.get('${AppConstants.apiBaseUrl}/families/family-1/messages'))
+    verify(() => apiClient.get('/families/family-1/messages'))
         .called(1);
   });
 
-  test('createMessage posts to /api/families/<id>/messages and returns created message', () async {
+  test('createMessage posts to /families/<id>/messages and returns created message', () async {
     final response = Response(
       data: {
         'message': {
@@ -61,12 +60,11 @@ void main() {
         }
       },
       statusCode: 201,
-      requestOptions:
-          RequestOptions(path: '${AppConstants.apiBaseUrl}/families/family-1/messages'),
+      requestOptions: RequestOptions(path: '/families/family-1/messages'),
     );
 
-    when(() => dio.post(
-          '${AppConstants.apiBaseUrl}/families/family-1/messages',
+    when(() => apiClient.post(
+          '/families/family-1/messages',
           data: any(named: 'data'),
         )).thenAnswer((_) async => response);
 
@@ -79,8 +77,8 @@ void main() {
     expect(message.id, equals('2'));
     expect(message.content, equals('Hi there'));
 
-    final verification = verify(() => dio.post(
-          '${AppConstants.apiBaseUrl}/families/family-1/messages',
+    final verification = verify(() => apiClient.post(
+          '/families/family-1/messages',
           data: captureAny(named: 'data'),
         ));
     verification.called(1);
