@@ -66,13 +66,13 @@ class AuthController {
     }));
   }
 
-   Future<Response> refresh(Request req) async {
+  Future<Response> refresh(Request req) async {
     final body = jsonDecode(await req.readAsString());
     final refreshToken = body['refreshToken'] as String?;
     if (refreshToken == null) return Response(400, body: jsonEncode({'error': 'refreshToken is required'}));
 
     try {
-      final jwt = _jwtService.verify(refreshToken);
+      final jwt = _jwtService.verifyRefreshToken(refreshToken);
       final sub = jwt.payload['sub'] as String?;
 
       if (sub == null || jwt.payload['type'] != 'refresh') {
@@ -80,7 +80,7 @@ class AuthController {
       }
       
       final accessToken = _jwtService.signAccessToken({'sub': sub});
-      final newRefreshToken = _jwtService.signRefreshToken({'sub': sub, 'type':'refresh'});
+      final newRefreshToken = _jwtService.signRefreshToken({'sub': sub, 'type': 'refresh'});
       
       // In a real app, you should implement token rotation and revocation logic here.
       
