@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
+import 'package:mocktail/mocktail.dart';
 
 import 'helpers/mock_auth_bloc.dart';
 
