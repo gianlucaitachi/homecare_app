@@ -1,9 +1,12 @@
 import 'dart:convert';
 
 import 'package:homecare_backend/controllers/task_controller.dart';
-import 'package:homecare_backend/models/auth_context.dart';
+import 'package:homecare_backend/middleware/authentication_middleware.dart';
+import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
 import 'package:homecare_backend/models/task_model.dart';
+import 'package:homecare_backend/models/user_model.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
+import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
 import 'package:shelf/shelf.dart';
@@ -134,6 +137,35 @@ class RecordingTaskEventHub extends TaskEventHub {
   }
 }
 
+class InMemoryUserRepository implements UserRepository {
+  final Map<String, User> users = {};
+
+  @override
+  Future<User?> findUserByEmail(String email) async {
+    for (final user in users.values) {
+      if (user.email == email) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<User?> findUserById(String id) async => users[id];
+
+  @override
+  Future<User> createUser({
+    required String id,
+    required String name,
+    required String email,
+    required String passwordHash,
+    required String familyId,
+    String? familyName,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   group('TaskController', () {
     late InMemoryTaskRepository repository;
@@ -142,6 +174,7 @@ void main() {
     late Handler handler;
     late JwtService jwtService;
     late String accessToken;
+    late InMemoryUserRepository userRepository;
 
     setUp(() {
       repository = InMemoryTaskRepository();
@@ -152,8 +185,17 @@ void main() {
         refreshSecret: 'test-refresh',
       );
       accessToken = jwtService.signAccessToken({'sub': 'user-1'});
+      userRepository = InMemoryUserRepository()
+        ..users['user-1'] = User(
+          id: 'user-1',
+          name: 'User One',
+          email: 'user1@example.com',
+          passwordHash: 'hash',
+          familyId: 'family-1',
+        );
       handler = Pipeline()
           .addMiddleware(authenticationMiddleware(jwtService))
+          .addMiddleware(authorizationContextMiddleware(userRepository))
           .addHandler(controller.router.call);
     });
 
@@ -225,6 +267,14 @@ void main() {
     });
 
     test('lists tasks for authenticated family only', () async {
+      userRepository.users['user-1'] = User(
+        id: 'user-1',
+        name: 'Family Two User',
+        email: 'user1@example.com',
+        passwordHash: 'hash',
+        familyId: 'family-2',
+      );
+
       final createResponse = await _call(
         _authedRequest(
           'POST',
@@ -246,16 +296,7 @@ void main() {
       );
 
       final listResponse = await _call(
-        Request(
-          'GET',
-          Uri.parse('http://localhost/'),
-          context: {
-            'auth': const AuthContext(
-              userId: 'user-2',
-              familyId: 'family-2',
-            ),
-          },
-        ),
+        _authedRequest('GET', '/'),
       );
 
       expect(listResponse.statusCode, equals(200));
@@ -267,29 +308,28 @@ void main() {
       expect(tasks.first['familyId'], equals('family-2'));
     });
 
-    test('list tasks returns 400 without auth context', () async {
+    test('list tasks returns 401 without auth context', () async {
       final response = await _call(
         Request('GET', Uri.parse('http://localhost/')),
       );
 
-      expect(response.statusCode, equals(400));
+      expect(response.statusCode, equals(401));
       final body =
           jsonDecode(await response.readAsString()) as Map<String, dynamic>;
-      expect(body['error'], equals('missing_authentication_context'));
+      expect(body['error'], equals('unauthorized'));
     });
 
     test('list tasks rejects family override attempts', () async {
+      userRepository.users['user-1'] = User(
+        id: 'user-1',
+        name: 'User Actual',
+        email: 'user1@example.com',
+        passwordHash: 'hash',
+        familyId: 'family-actual',
+      );
+
       final response = await _call(
-        Request(
-          'GET',
-          Uri.parse('http://localhost/?familyId=family-override'),
-          context: {
-            'auth': const AuthContext(
-              userId: 'user-1',
-              familyId: 'family-actual',
-            ),
-          },
-        ),
+        _authedRequest('GET', '/?familyId=family-override'),
       );
 
       expect(response.statusCode, equals(403));
@@ -299,22 +339,21 @@ void main() {
     });
 
     test('list tasks allows override when family matches auth context', () async {
+      userRepository.users['user-1'] = User(
+        id: 'user-1',
+        name: 'Allowed User',
+        email: 'user1@example.com',
+        passwordHash: 'hash',
+        familyId: 'family-allowed',
+      );
+
       await repository.createTask(
         familyId: 'family-allowed',
         title: 'Prepare schedule',
       );
 
       final response = await _call(
-        Request(
-          'GET',
-          Uri.parse('http://localhost/?familyId=family-allowed'),
-          context: const {
-            'auth': AuthContext(
-              userId: 'user-allowed',
-              familyId: 'family-allowed',
-            ),
-          },
-        ),
+        _authedRequest('GET', '/?familyId=family-allowed'),
       );
 
       expect(response.statusCode, equals(200));
@@ -322,6 +361,19 @@ void main() {
       final tasks = body['tasks'] as List<dynamic>;
       expect(tasks, hasLength(1));
       expect(tasks.first['familyId'], equals('family-allowed'));
+    });
+
+    test('list tasks returns 401 when authenticated user cannot be resolved',
+        () async {
+      userRepository.users.remove('user-1');
+
+      final response = await _call(
+        _authedRequest('GET', '/'),
+      );
+
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('unauthorized'));
     });
 
     test('updates, assigns and completes task', () async {

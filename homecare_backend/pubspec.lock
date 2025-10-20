@@ -436,18 +436,16 @@ packages:
   socket_io:
     dependency: "direct main"
     description:
-      name: socket_io
-      sha256: "5e1641a7d356385e5cd946a46c9e46dea6a4b4b73cdd6cb574f30f1ea66f41e5"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/socket_io"
+      relative: true
+    source: path
     version: "1.0.1"
   socket_io_common:
     dependency: transitive
     description:
-      name: socket_io_common
-      sha256: "469c7e6bb0c8d571a5158c1352112654f03aedc2f0a246533e1cbdb41efa4937"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/socket_io_common"
+      relative: true
+    source: path
     version: "1.0.1"
   source_map_stack_trace:
     dependency: transitive
@@ -482,6 +480,14 @@ packages:
     source: hosted
     version: "1.12.1"
   stream:
+    dependency: transitive
+    description:
+      name: stream
+      sha256: "8b7263573d09968e6dcabf3287dee7ff39f520a36b5b2d62be7899e73eaa980c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.3+1"
+  stream_channel:
     dependency: transitive
     description:
       name: stream
@@ -556,11 +562,11 @@ packages:
   uuid:
     dependency: "direct main"
     description:
-      name: uuid
-      sha256: "648e103079f7c64a36dc7d39369cabb358d377078a051d6ae2ad3aa539519313"
+      name: unorm_dart
+      sha256: "0c69186b03ca6addab0774bcc0f4f17b88d4ce78d9d4d8f0619e30a99ead58e7"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.7"
+    version: "4.5.1"
   vm_service:
     dependency: transitive
     description:
