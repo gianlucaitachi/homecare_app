@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:shelf/shelf.dart';
@@ -10,6 +11,7 @@ import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
+import 'package:homecare_backend/models/auth_context.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
@@ -44,6 +46,9 @@ Future<void> main(List<String> args) async {
   // 5. Thiết lập các routes
   final app = Router();
   final apiRouter = Router();
+  apiRouter.get('/health', (Request request) {
+    return Response.ok(jsonEncode({'status': 'ok'}));
+  });
 
   final authRouter = Router()
     ..post('/register', authController.register)
@@ -51,6 +56,12 @@ Future<void> main(List<String> args) async {
     ..post('/refresh', authController.refresh)
     ..post('/logout', authController.logout);
   apiRouter.mount('/auth', authRouter);
+
+  final meRouter = Router()..get('/', authController.me);
+  final protectedMeRouter = Pipeline()
+      .addMiddleware(_requireAuthContextMiddleware())
+      .addHandler(meRouter);
+  apiRouter.mount('/me', protectedMeRouter);
 
   final familiesRouter = Router()
     ..get('/<familyId>/messages', chatController.getMessages)
@@ -86,6 +97,18 @@ Middleware _jsonResponseMiddleware() {
         return response.change(headers: {'content-type': 'application/json'});
       }
       return response;
+    };
+  };
+}
+
+Middleware _requireAuthContextMiddleware() {
+  return (innerHandler) {
+    return (request) async {
+      final auth = request.context['auth'];
+      if (auth is! AuthContext) {
+        return Response(401, body: jsonEncode({'error': 'unauthorized'}));
+      }
+      return innerHandler(request);
     };
   };
 }
