@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:homecare_app/core/socket/socket_service.dart';
@@ -23,22 +24,23 @@ final sl = GetIt.instance;
 Future<void> setupDependencies() async {
   // -- Features - Auth --
 
-  // Bloc
-  // Đăng ký dạng factory, vì ta muốn có một instance mới của BLoC mỗi khi cần
-  sl.registerFactory(
-    () => AuthBloc(authRepository: sl()),
+void _registerCoreServices() {
+  sl.registerLazySingleton(
+    () => NotificationService(
+      flutterLocalNotificationsPlugin: sl(),
+      hive: Hive,
+    ),
   );
+}
 
-  // Repository
-  // Đăng ký dạng lazy singleton, chỉ khởi tạo khi được gọi lần đầu
+void _registerFeatureDependencies() {
+  sl.registerFactory(() => AuthBloc(authRepository: sl()));
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       remoteDataSource: sl(),
       secureStorage: sl(),
     ),
   );
-
-  // Data Sources
   sl.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSourceImpl(dio: sl()),
   );

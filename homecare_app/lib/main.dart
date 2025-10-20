@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
+import 'package:homecare_app/core/notifications/notification_service.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:homecare_app/features/auth/presentation/screens/authentication_gate.dart';
@@ -8,8 +9,8 @@ import 'package:homecare_app/features/auth/presentation/screens/authentication_g
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Thiết lập tất cả các dependency chỉ với một dòng lệnh.
   await setupDependencies();
+  await sl<NotificationService>().initialize();
 
   runApp(const MyApp());
 }
@@ -19,8 +20,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Cung cấp AuthBloc cho cây widget.
-    // sl<AuthBloc>() sẽ yêu cầu và nhận một thực thể AuthBloc từ GetIt.
     return BlocProvider<AuthBloc>(
       create: (context) => sl<AuthBloc>()..add(AuthCheckRequested()),
       child: MaterialApp(
