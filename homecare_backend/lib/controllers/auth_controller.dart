@@ -111,14 +111,23 @@ class AuthController {
         return Response(401, body: jsonEncode({'error': 'invalid_token'}));
       }
 
-      final user = await _userRepository.findUserById(sub);
-      if (user == null) {
+      final authenticatedUserId = req.authenticatedUserId;
+      if (authenticatedUserId != null && authenticatedUserId != sub) {
         return Response(401, body: jsonEncode({'error': 'invalid_token'}));
       }
 
-      final accessToken = _jwtService.signAccessToken({'sub': sub});
+      final userId = authenticatedUserId ?? sub;
+
+      if (authenticatedUserId == null) {
+        final user = await _userRepository.findUserById(userId);
+        if (user == null) {
+          return Response(401, body: jsonEncode({'error': 'invalid_token'}));
+        }
+      }
+
+      final accessToken = _jwtService.signAccessToken({'sub': userId});
       final newRefreshToken =
-          _jwtService.signRefreshToken({'sub': sub, 'type': 'refresh'});
+          _jwtService.signRefreshToken({'sub': userId, 'type': 'refresh'});
 
       // In a real app, you should implement token rotation and revocation logic here.
 

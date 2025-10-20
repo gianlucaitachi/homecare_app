@@ -176,6 +176,21 @@ void main() {
       expect(body['refreshToken'], isNot(equals(refreshToken)));
     });
 
+    test('refresh rejects invalid refresh token string', () async {
+      final response = await refreshHandler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/auth/refresh'),
+          body: jsonEncode({'refreshToken': 'not-a-valid-token'}),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('invalid_token'));
+    });
+
     test('refresh succeeds with an expired access token', () async {
       jwtService = JwtService(
         accessSecret: 'access-secret',
@@ -232,6 +247,58 @@ void main() {
       final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
       expect(body['accessToken'], isNotEmpty);
       expect(body['refreshToken'], isNotEmpty);
+    });
+
+    test('refresh rejects mismatched refresh token and access token', () async {
+      final firstRegisterResponse = await router.call(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/auth/register'),
+          body: jsonEncode({
+            'email': 'first@example.com',
+            'password': 'FirstPassword123',
+            'name': 'First',
+          }),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      final secondRegisterResponse = await router.call(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/auth/register'),
+          body: jsonEncode({
+            'email': 'second@example.com',
+            'password': 'SecondPassword123',
+            'name': 'Second',
+          }),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      final firstBody = jsonDecode(await firstRegisterResponse.readAsString())
+          as Map<String, dynamic>;
+      final secondBody = jsonDecode(await secondRegisterResponse.readAsString())
+          as Map<String, dynamic>;
+
+      final firstAccessToken = firstBody['accessToken'] as String;
+      final secondRefreshToken = secondBody['refreshToken'] as String;
+
+      final response = await refreshHandler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/auth/refresh'),
+          body: jsonEncode({'refreshToken': secondRefreshToken}),
+          headers: {
+            'content-type': 'application/json',
+            'Authorization': 'Bearer $firstAccessToken',
+          },
+        ),
+      );
+
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('invalid_token'));
     });
 
     test('refresh rejects refresh tokens for unknown users', () async {
