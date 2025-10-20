@@ -8,6 +8,7 @@ import '../models/auth_context.dart';
 import '../models/task_model.dart';
 import '../repositories/task_repository.dart';
 import '../services/task_event_hub.dart';
+import '../utils/request_context.dart';
 
 class TaskController {
   TaskController(this._repository, this._eventHub);
@@ -66,6 +67,10 @@ class TaskController {
   }
 
   Future<Response> createTask(Request request) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final payload = await _decodeJsonBody(request);
     final familyId = payload['familyId'] as String?;
     final title = payload['title'] as String?;
@@ -98,6 +103,10 @@ class TaskController {
   }
 
   Future<Response> getTaskById(Request request, String id) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final task = await _repository.getTask(id);
     if (task == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
@@ -106,6 +115,10 @@ class TaskController {
   }
 
   Future<Response> updateTask(Request request, String id) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final existing = await _repository.getTask(id);
     if (existing == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
@@ -161,6 +174,10 @@ class TaskController {
   }
 
   Future<Response> deleteTask(Request request, String id) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final existing = await _repository.getTask(id);
     if (existing == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
@@ -176,6 +193,10 @@ class TaskController {
   }
 
   Future<Response> assignTask(Request request, String id) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final payload = await _decodeJsonBody(request);
     final userId = payload['userId'] as String?;
     if (userId == null) {
@@ -197,6 +218,10 @@ class TaskController {
   }
 
   Future<Response> broadcastUpdate(Request request, String id) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final payload = await _decodeJsonBody(request);
     final familyId = payload['familyId'] as String?;
     if (familyId == null || familyId.isEmpty) {
@@ -218,6 +243,10 @@ class TaskController {
   }
 
   Future<Response> completeByQrPayload(Request request) async {
+    if (request.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
+
     final payload = await _decodeJsonBody(request);
     final qrPayload = payload['payload'] as String?;
     if (qrPayload == null) {
@@ -252,5 +281,9 @@ class TaskController {
     if (raw == null || raw.isEmpty) return null;
     return DateTime.tryParse(raw);
 
+  }
+
+  Response _unauthorizedResponse() {
+    return Response(401, body: jsonEncode({'error': 'unauthorized'}));
   }
 }

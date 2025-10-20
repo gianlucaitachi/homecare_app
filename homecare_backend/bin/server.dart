@@ -8,9 +8,11 @@ import 'package:homecare_backend/controllers/auth_controller.dart';
 import 'package:homecare_backend/controllers/chat_controller.dart';
 import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
+import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
+import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/socket_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
 
@@ -25,7 +27,12 @@ Future<void> main(List<String> args) async {
   final messageRepository = PostgresMessageRepository(dbClient);
 
   // 4. Khởi tạo các Controller với Repository tương ứng
-  final authController = AuthController(userRepository);
+  final jwtService = JwtService();
+
+  final authController = AuthController(
+    userRepository,
+    jwtService: jwtService,
+  );
   final taskEventHub = TaskEventHub();
   final taskController = TaskController(taskRepository, taskEventHub);
   final socketAdapter = SocketIOServerAdapter();
@@ -58,6 +65,7 @@ Future<void> main(List<String> args) async {
   final handler = Pipeline()
       .addMiddleware(logRequests())
       .addMiddleware(_jsonResponseMiddleware())
+      .addMiddleware(authenticationMiddleware(jwtService))
       .addHandler(app);
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');

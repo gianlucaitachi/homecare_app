@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../repositories/user_repository.dart';
 import '../services/jwt_service.dart';
 import '../services/password_service.dart';
+import '../utils/request_context.dart';
 
 class AuthController {
   AuthController(
@@ -97,6 +98,11 @@ class AuthController {
   }
 
   Future<Response> refresh(Request req) async {
+    final userId = req.authenticatedUserId;
+    if (userId == null) {
+      return _unauthorizedResponse();
+    }
+
     final body = jsonDecode(await req.readAsString());
     final refreshToken = body['refreshToken'] as String?;
     if (refreshToken == null) return Response(400, body: jsonEncode({'error': 'refreshToken is required'}));
@@ -105,8 +111,8 @@ class AuthController {
       final jwt = _jwtService.verifyRefreshToken(refreshToken);
       final sub = jwt.payload['sub'] as String?;
 
-      if (sub == null || jwt.payload['type'] != 'refresh') {
-        return Response.forbidden(jsonEncode({'error': 'invalid refresh token'}));
+      if (sub == null || jwt.payload['type'] != 'refresh' || sub != userId) {
+        return Response(401, body: jsonEncode({'error': 'invalid_token'}));
       }
 
       final accessToken = _jwtService.signAccessToken({'sub': sub});
@@ -116,12 +122,19 @@ class AuthController {
       
       return Response.ok(jsonEncode({'accessToken': accessToken, 'refreshToken': newRefreshToken}));
     } catch (e) {
-      return Response.forbidden(jsonEncode({'error': 'invalid_token'}));
+      return Response(401, body: jsonEncode({'error': 'invalid_token'}));
     }
   }
 
   Future<Response> logout(Request req) async {
+    if (req.authenticatedUserId == null) {
+      return _unauthorizedResponse();
+    }
     // In a real app, you would add logic here to invalidate the refresh token.
     return Response.ok(jsonEncode({'message': 'logged out successfully'}));
+  }
+
+  Response _unauthorizedResponse() {
+    return Response(401, body: jsonEncode({'error': 'unauthorized'}));
   }
 }
