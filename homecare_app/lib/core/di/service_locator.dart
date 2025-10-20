@@ -84,7 +84,10 @@ void _registerFeatureDependencies() {
   // Tasks
   sl
     ..registerLazySingleton<TaskSocketService>(
-      () => TaskSocketService(baseUrl: AppConstants.baseUrl),
+      () => TaskSocketService(
+        baseUrl: AppConstants.baseUrl,
+        secureStorage: sl(),
+      ),
     )
     ..registerLazySingleton<TaskRemoteDataSource>(
       () => TaskRemoteDataSourceImpl(apiClient: sl()),
