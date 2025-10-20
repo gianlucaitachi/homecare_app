@@ -61,7 +61,8 @@ Future<void> main(List<String> args) async {
 
   final familiesRouter = Router()
     ..get('/<familyId>/messages', chatController.getMessages)
-    ..post('/<familyId>/messages', chatController.postMessage);
+    ..post('/<familyId>/messages', chatController.postMessage)
+    ..get('/<familyId>/messages/ws', chatController.connectWebSocket);
   final protectedFamiliesHandler = _protectedHandler(
     jwtService,
     userRepository,
@@ -84,7 +85,6 @@ Future<void> main(List<String> args) async {
   apiRouter.mount('/tasks', protectedTasksHandler);
   apiRouter.mount('/me', protectedMeHandler);
   app.mount('/api', apiRouter);
-  app.get('/ws/tasks', taskController.socketHandler);
 
   socketService.initialize();
 
