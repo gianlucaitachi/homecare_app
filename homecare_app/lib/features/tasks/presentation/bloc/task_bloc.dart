@@ -92,6 +92,11 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   }
 
   Future<void> _scheduleReminderIfNeeded(Task task) async {
+    if (task.isCompleted) {
+      await _notificationService.cancelTaskReminder(task.id);
+      return;
+    }
+
     final dueDate = task.dueDate;
     if (dueDate == null) {
       await _notificationService.cancelTaskReminder(task.id);
@@ -107,6 +112,11 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   }
 
   Future<void> _updateReminderForUpdate(Task previous, Task updated) async {
+    if (updated.isCompleted) {
+      await _notificationService.cancelTaskReminder(updated.id);
+      return;
+    }
+
     final previousDueDate = previous.dueDate;
     final newDueDate = updated.dueDate;
 

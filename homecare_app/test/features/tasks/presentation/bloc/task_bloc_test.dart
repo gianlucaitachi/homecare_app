@@ -1,7 +1,8 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homecare_app/core/notifications/notification_service.dart';
-import 'package:homecare_app/features/tasks/domain/entities/task.dart';
+import 'package:homecare_app/features/tasks/domain/entities/task.dart'
+    as domain;
 import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_state.dart';
@@ -11,15 +12,23 @@ class _MockNotificationService extends Mock implements NotificationService {}
 
 void main() {
   late _MockNotificationService notificationService;
-  late Task taskWithDueDate;
+  late domain.Task taskWithDueDate;
+  late DateTime baseTime;
 
   setUp(() {
     notificationService = _MockNotificationService();
-    taskWithDueDate = Task(
+    baseTime = DateTime(2024, 1, 1, 9);
+    taskWithDueDate = domain.Task(
       id: '1',
+      familyId: 'family-1',
       title: 'Test Task',
       description: 'Remember to finish testing.',
-      dueDate: DateTime.now().add(const Duration(hours: 6)),
+      status: domain.TaskStatus.pending,
+      dueDate: baseTime.add(const Duration(hours: 6)),
+      qrPayload: 'qr-payload',
+      qrImageBase64: 'qr-image',
+      createdAt: baseTime,
+      updatedAt: baseTime,
     );
 
     when(() => notificationService.scheduleTaskReminder(
@@ -121,6 +130,50 @@ void main() {
       TaskState(
         status: TaskStatus.success,
         task: taskWithDueDate.copyWith(dueDate: null),
+        operation: TaskOperation.update,
+      ),
+    ],
+    verify: (_) {
+      verify(() => notificationService.cancelTaskReminder(taskWithDueDate.id))
+          .called(1);
+    },
+  );
+
+  blocTest<TaskBloc, TaskState>(
+    'cancels reminder when task is marked completed',
+    build: () => TaskBloc(notificationService: notificationService),
+    act: (bloc) {
+      final completedTask = taskWithDueDate.copyWith(
+        status: domain.TaskStatus.completed,
+        completedAt: taskWithDueDate.dueDate,
+        updatedAt: taskWithDueDate.updatedAt.add(const Duration(minutes: 5)),
+      );
+      bloc
+        ..add(TaskCreated(taskWithDueDate))
+        ..add(
+          TaskUpdated(
+            previousTask: taskWithDueDate,
+            updatedTask: completedTask,
+          ),
+        );
+    },
+    expect: () => [
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate,
+        operation: TaskOperation.create,
+      ),
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate.copyWith(
+          status: domain.TaskStatus.completed,
+          completedAt: taskWithDueDate.dueDate,
+          updatedAt: taskWithDueDate.updatedAt.add(
+            const Duration(minutes: 5),
+          ),
+        ),
         operation: TaskOperation.update,
       ),
     ],
