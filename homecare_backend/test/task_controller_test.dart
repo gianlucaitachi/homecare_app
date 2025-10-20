@@ -298,6 +298,32 @@ void main() {
       expect(body['error'], equals('family_id_mismatch'));
     });
 
+    test('list tasks allows override when family matches auth context', () async {
+      await repository.createTask(
+        familyId: 'family-allowed',
+        title: 'Prepare schedule',
+      );
+
+      final response = await _call(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/?familyId=family-allowed'),
+          context: const {
+            'auth': AuthContext(
+              userId: 'user-allowed',
+              familyId: 'family-allowed',
+            ),
+          },
+        ),
+      );
+
+      expect(response.statusCode, equals(200));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      final tasks = body['tasks'] as List<dynamic>;
+      expect(tasks, hasLength(1));
+      expect(tasks.first['familyId'], equals('family-allowed'));
+    });
+
     test('updates, assigns and completes task', () async {
       final createResponse = await _call(
         _authedRequest(
