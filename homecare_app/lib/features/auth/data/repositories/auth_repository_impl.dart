@@ -28,8 +28,8 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       // Lưu token vào secure storage
-      await _secureStorage.write(key: 'accessToken', value: accessToken);
-      await _secureStorage.write(key: 'refreshToken', value: refreshToken);
+      await _secureStorage.write(key: 'access_token', value: accessToken);
+      await _secureStorage.write(key: 'refresh_token', value: refreshToken);
 
     } on DioException catch (e) {
       // Xử lý lỗi từ Dio

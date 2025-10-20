@@ -2,10 +2,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:homecare_app/core/socket/socket_service.dart';
 import 'package:homecare_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:homecare_app/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:homecare_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:homecare_app/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:homecare_app/features/chat/data/repositories/chat_repository.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 // Khởi tạo instance của GetIt
@@ -35,6 +38,15 @@ Future<void> setupDependencies() async {
     () => AuthRemoteDataSourceImpl(dio: sl()),
   );
 
+  // -- Features - Chat --
+  sl.registerLazySingleton<ChatRemoteDataSource>(
+    () => ChatRemoteDataSource(dio: sl()),
+  );
+
+  sl.registerLazySingleton<ChatRepository>(
+    () => ChatRepository(remoteDataSource: sl()),
+  );
+
   // -- Core & External --
 
   // Dio (for networking)
@@ -55,4 +67,6 @@ Future<void> setupDependencies() async {
 
   // Flutter Secure Storage
   sl.registerLazySingleton(() => const FlutterSecureStorage());
+
+  sl.registerLazySingleton(() => SocketService(sl()));
 }
