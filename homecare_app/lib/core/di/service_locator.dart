@@ -12,7 +12,7 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 final sl = GetIt.instance;
 
 // Hàm khởi tạo và đăng ký tất cả các dependency
-Future<void> init() async {
+Future<void> setupDependencies() async {
   // -- Features - Auth --
 
   // Bloc
