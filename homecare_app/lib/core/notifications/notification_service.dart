@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:hive/hive.dart';
 import 'package:homecare_app/core/notifications/notification_permission_requester.dart';
 import 'package:homecare_app/core/notifications/scheduled_notification.dart';
@@ -10,11 +11,14 @@ class NotificationService {
     FlutterLocalNotificationsPlugin? flutterLocalNotificationsPlugin,
     HiveInterface? hive,
     NotificationPermissionRequester? permissionRequester,
+    Future<String> Function()? getLocalTimezone,
   })  : _plugin =
             flutterLocalNotificationsPlugin ?? FlutterLocalNotificationsPlugin(),
         _hive = hive ?? Hive,
         _permissionRequester =
-            permissionRequester ?? PermissionHandlerNotificationRequester();
+            permissionRequester ?? PermissionHandlerNotificationRequester(),
+        _getLocalTimezone =
+            getLocalTimezone ?? FlutterNativeTimezone.getLocalTimezone;
 
   static const String _boxName = 'scheduled_notifications';
   static const AndroidNotificationDetails _androidDetails =
@@ -32,20 +36,20 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin;
   final HiveInterface _hive;
   final NotificationPermissionRequester _permissionRequester;
+  final Future<String> Function() _getLocalTimezone;
 
   Box<ScheduledNotification>? _box;
   bool _initialized = false;
   bool _timeZonesInitialized = false;
+  bool _localLocationSet = false;
 
   Future<void> initialize() async {
     if (_initialized) {
       return;
     }
 
-    if (!_timeZonesInitialized) {
-      tz.initializeTimeZones();
-      _timeZonesInitialized = true;
-    }
+    await _ensureTimeZonesInitialized();
+    await _ensureLocalLocationSet();
 
     if (!_hive.isAdapterRegistered(scheduledNotificationTypeId)) {
       _hive.registerAdapter(ScheduledNotificationAdapter());
@@ -138,6 +142,7 @@ class NotificationService {
     required DateTime dueDate,
     required bool persist,
   }) async {
+    await _ensureLocalLocationSet();
     final scheduledDate = tz.TZDateTime.from(dueDate, tz.local);
 
     await _plugin.zonedSchedule(
@@ -204,6 +209,27 @@ class NotificationService {
     if (!_initialized) {
       await initialize();
     }
+  }
+
+  Future<void> _ensureTimeZonesInitialized() async {
+    if (_timeZonesInitialized) {
+      return;
+    }
+
+    tz.initializeTimeZones();
+    _timeZonesInitialized = true;
+  }
+
+  Future<void> _ensureLocalLocationSet() async {
+    if (_localLocationSet) {
+      return;
+    }
+
+    await _ensureTimeZonesInitialized();
+    final timeZoneName = await _getLocalTimezone();
+    final location = tz.getLocation(timeZoneName);
+    tz.setLocalLocation(location);
+    _localLocationSet = true;
   }
 
   Future<bool> _ensurePermissionsGranted() async {
