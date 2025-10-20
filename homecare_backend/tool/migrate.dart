@@ -87,7 +87,8 @@ List<String> _splitSqlStatements(String sql) {
       while (index < sql.length &&
           sql[index] != '
 ' &&
-          sql[index] != '') {
+          sql[index] != '
+') {
         index++;
       }
       continue;

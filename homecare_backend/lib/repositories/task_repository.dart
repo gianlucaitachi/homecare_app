@@ -147,6 +147,7 @@ class PostgresTaskRepository implements TaskRepository {
         'id': id,
         'familyId': familyId,
       },
+      ignoreRows: true,
     );
   }
 

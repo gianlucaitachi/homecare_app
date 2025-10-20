@@ -22,13 +22,13 @@ import 'package:homecare_backend/services/task_event_hub.dart';
 
 Future<void> main(List<String> args) async {
   // 1. Khởi tạo kết nối CSDL
-  final dbClient = PostgresClient.fromEnv();
-  await dbClient.connect();
+  final db = DatabaseManager.instance;
+  await db.connect();
 
   // 2. Khởi tạo các Repository
-  final userRepository = PostgresUserRepository(dbClient);
-  final taskRepository = PostgresTaskRepository(dbClient);
-  final messageRepository = PostgresMessageRepository(dbClient);
+  final userRepository = PostgresUserRepository(db);
+  final taskRepository = PostgresTaskRepository(db);
+  final messageRepository = PostgresMessageRepository(db);
 
   // 4. Khởi tạo các Controller với Repository tương ứng
   final jwtService = JwtService();

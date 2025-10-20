@@ -1,3 +1,4 @@
+import 'package:postgres/postgres.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:postgres/postgres.dart';
@@ -16,7 +17,8 @@ abstract class MessageRepository {
 }
 
 class PostgresMessageRepository implements MessageRepository {
-  PostgresMessageRepository(this._db, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  PostgresMessageRepository(this._db, {Uuid? uuid})
+      : _uuid = uuid ?? const Uuid();
 
   final DatabaseManager _db;
   final Uuid _uuid;
@@ -32,7 +34,9 @@ class PostgresMessageRepository implements MessageRepository {
       parameters: {'familyId': familyId},
     );
 
-    return result.map((row) => Message.fromRow(row.toColumnMap())).toList();
+    return result
+        .map((row) => Message.fromRow(row.toColumnMap()))
+        .toList(growable: false);
   }
 
   @override
