@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:homecare_backend/controllers/task_controller.dart';
+import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/models/task_model.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
+import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
@@ -138,21 +140,73 @@ void main() {
     late RecordingTaskEventHub eventHub;
     late TaskController controller;
     late Handler handler;
+    late JwtService jwtService;
+    late String accessToken;
 
     setUp(() {
       repository = InMemoryTaskRepository();
       eventHub = RecordingTaskEventHub();
       controller = TaskController(repository, eventHub);
-      handler = controller.router.call;
+      jwtService = JwtService(
+        accessSecret: 'test-access',
+        refreshSecret: 'test-refresh',
+      );
+      accessToken = jwtService.signAccessToken({'sub': 'user-1'});
+      handler = Pipeline()
+          .addMiddleware(authenticationMiddleware(jwtService))
+          .addHandler(controller.router.call);
     });
+
+    Request _authedRequest(
+      String method,
+      String path, {
+      Map<String, String>? headers,
+      Object? body,
+    }) {
+      final updatedHeaders = <String, String>{
+        'Authorization': 'Bearer $accessToken',
+        ...?headers,
+      };
+
+      return Request(
+        method,
+        Uri.parse('http://localhost$path'),
+        headers: updatedHeaders,
+        body: body,
+      );
+    }
 
     Future<Response> _call(Request request) => handler(request);
 
-    test('creates task with QR data and broadcasts event', () async {
+    test('returns 401 when Authorization header is missing', () async {
+      final response = await _call(
+        Request('GET', Uri.parse('http://localhost/')),
+      );
+
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('unauthorized'));
+    });
+
+    test('returns 401 when Authorization token is invalid', () async {
       final response = await _call(
         Request(
-          'POST',
+          'GET',
           Uri.parse('http://localhost/'),
+          headers: {'Authorization': 'Bearer invalid-token'},
+        ),
+      );
+
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('unauthorized'));
+    });
+
+    test('creates task with QR data and broadcasts event', () async {
+      final response = await _call(
+        _authedRequest(
+          'POST',
+          '/',
           body: jsonEncode({
             'familyId': 'family-1',
             'title': 'Morning medication',
@@ -172,9 +226,9 @@ void main() {
 
     test('lists tasks after creation', () async {
       final createResponse = await _call(
-        Request(
+        _authedRequest(
           'POST',
-          Uri.parse('http://localhost/'),
+          '/',
           body: jsonEncode({
             'familyId': 'family-2',
             'title': 'Prepare breakfast',
@@ -187,7 +241,7 @@ void main() {
       final taskId = (created['task'] as Map<String, dynamic>)['id'] as String;
 
       final listResponse = await _call(
-        Request('GET', Uri.parse('http://localhost/?familyId=family-2')),
+        _authedRequest('GET', '/?familyId=family-2'),
       );
 
       expect(listResponse.statusCode, equals(200));
@@ -200,9 +254,9 @@ void main() {
 
     test('updates, assigns and completes task', () async {
       final createResponse = await _call(
-        Request(
+        _authedRequest(
           'POST',
-          Uri.parse('http://localhost/'),
+          '/',
           body: jsonEncode({
             'familyId': 'family-3',
             'title': 'Check vitals',
@@ -217,9 +271,9 @@ void main() {
       final qrPayload = task['qrPayload'] as String;
 
       final updateResponse = await _call(
-        Request(
+        _authedRequest(
           'PUT',
-          Uri.parse('http://localhost/$taskId'),
+          '/$taskId',
           body: jsonEncode({
             'description': 'Check blood pressure and heart rate',
           }),
@@ -233,9 +287,9 @@ void main() {
           equals('Check blood pressure and heart rate'));
 
       final assignResponse = await _call(
-        Request(
+        _authedRequest(
           'POST',
-          Uri.parse('http://localhost/$taskId/assign'),
+          '/$taskId/assign',
           body: jsonEncode({'userId': 'caregiver-1'}),
           headers: {'content-type': 'application/json'},
         ),
@@ -246,9 +300,9 @@ void main() {
       expect(assignBody['task']['status'], equals('in_progress'));
 
       final completeResponse = await _call(
-        Request(
+        _authedRequest(
           'POST',
-          Uri.parse('http://localhost/complete-qr'),
+          '/complete-qr',
           body: jsonEncode({'payload': qrPayload}),
           headers: {'content-type': 'application/json'},
         ),
