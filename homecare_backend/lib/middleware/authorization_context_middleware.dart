@@ -9,8 +9,7 @@ Middleware authorizationContextMiddleware(UserRepository userRepository) {
     return (request) async {
       final subject = request.authenticatedUserId;
       if (subject != null && subject.isNotEmpty) {
-        final user = await userRepository.findUserById(subject) ??
-            await userRepository.findUserByEmail(subject);
+        final user = await userRepository.findUserById(subject);
         if (user != null) {
           final updatedContext = Map<String, Object?>.from(request.context);
           updatedContext['auth'] =

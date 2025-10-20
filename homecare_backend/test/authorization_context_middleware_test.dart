@@ -174,5 +174,19 @@ void main() {
       final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
       expect(body['error'], equals('family_id_mismatch'));
     });
+
+    test('GET /api/tasks returns 401 when user cannot be resolved', () async {
+      final token = jwtService.signAccessToken({'sub': 'missing-user'});
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost/api/tasks'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final response = await handler(request);
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('unauthorized'));
+    });
   });
 }
