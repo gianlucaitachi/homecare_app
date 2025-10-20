@@ -53,7 +53,7 @@ void _registerFeatureDependencies() {
   sl.registerLazySingleton<TaskRemoteDataSource>(
     () => TaskRemoteDataSourceImpl(
       dio: sl(),
-      baseUrl: AppConstants.baseUrl,
+      apiBaseUrl: AppConstants.apiBaseUrl,
     ),
   );
 
