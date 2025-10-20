@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:homecare_backend/db/postgres_client.dart';
+import 'package:homecare_backend/db/database.dart';
 
 Future<void> main(List<String> args) async {
   final migrationsDir = Directory('migrations');
@@ -9,11 +9,11 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
-  final dbClient = PostgresClient.fromEnv();
+  final db = DatabaseManager.fromEnv();
   var exitCodeValue = 0;
 
   try {
-    await dbClient.connect();
+    await db.open();
 
     final migrationFiles = await migrationsDir
         .list()
@@ -36,7 +36,7 @@ Future<void> main(List<String> args) async {
         if (statement.trim().isEmpty) {
           continue;
         }
-        await dbClient.raw.execute(statement);
+        await db.conn.execute(statement);
       }
     }
 
@@ -46,7 +46,7 @@ Future<void> main(List<String> args) async {
     stderr.writeln('Migration failed: $error');
     stderr.writeln(stackTrace);
   } finally {
-    await dbClient.close();
+    await db.close();
   }
 
   if (exitCodeValue != 0) {
