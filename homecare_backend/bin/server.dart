@@ -9,6 +9,7 @@ import 'package:homecare_backend/controllers/chat_controller.dart';
 import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
+import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
@@ -66,6 +67,7 @@ Future<void> main(List<String> args) async {
       .addMiddleware(logRequests())
       .addMiddleware(_jsonResponseMiddleware())
       .addMiddleware(authenticationMiddleware(jwtService))
+      .addMiddleware(authorizationContextMiddleware(userRepository))
       .addHandler(app);
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');

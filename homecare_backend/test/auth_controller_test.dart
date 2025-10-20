@@ -13,12 +13,18 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 class InMemoryUserRepository implements UserRepository {
-  final Map<String, User> _users = {};
+  final Map<String, User> _usersByEmail = {};
+  final Map<String, User> _usersById = {};
   final Map<String, String> _families = {};
 
   @override
   Future<User?> findUserByEmail(String email) async {
-    return _users[email];
+    return _usersByEmail[email];
+  }
+
+  @override
+  Future<User?> findUserById(String id) async {
+    return _usersById[id];
   }
 
   @override
@@ -40,7 +46,8 @@ class InMemoryUserRepository implements UserRepository {
       passwordHash: passwordHash,
       familyId: familyId,
     );
-    _users[email] = user;
+    _usersByEmail[email] = user;
+    _usersById[id] = user;
     return user;
   }
 }
