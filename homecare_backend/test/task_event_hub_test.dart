@@ -38,8 +38,8 @@ class _TestWebSocketSink implements WebSocketSink {
   Future<void> get done => _doneCompleter.future;
 }
 
-class _TestWebSocketChannel extends WebSocketChannel {
-  _TestWebSocketChannel() : _controller = StreamController<dynamic>();
+class _TestTaskEventClient implements TaskEventClient {
+  _TestTaskEventClient() : _controller = StreamController<dynamic>();
 
   final StreamController<dynamic> _controller;
   final _sink = _TestWebSocketSink();
@@ -65,9 +65,9 @@ void main() {
   group('TaskEventHub', () {
     test('broadcasts only to matching family', () {
       final hub = TaskEventHub();
-      final family1 = _TestWebSocketChannel();
-      final family2 = _TestWebSocketChannel();
-      final global = _TestWebSocketChannel();
+      final family1 = _TestTaskEventClient();
+      final family2 = _TestTaskEventClient();
+      final global = _TestTaskEventClient();
 
       hub.addClient(family1, familyId: 'family-1');
       hub.addClient(family2, familyId: 'family-2');
@@ -86,7 +86,7 @@ void main() {
 
     test('removes disconnected clients from their family set', () async {
       final hub = TaskEventHub();
-      final family1 = _TestWebSocketChannel();
+      final family1 = _TestTaskEventClient();
 
       hub.addClient(family1, familyId: 'family-1');
       family1.close();

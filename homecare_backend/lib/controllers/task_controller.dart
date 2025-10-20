@@ -32,7 +32,10 @@ class TaskController {
   Handler get socketHandler => (Request request) {
         final familyId = request.url.queryParameters['familyId'];
         final handler = webSocketHandler((socket) {
-          _eventHub.addClient(socket, familyId: familyId);
+          _eventHub.addClient(
+            WebSocketTaskEventClient(socket),
+            familyId: familyId,
+          );
         });
         return handler(request);
       };
