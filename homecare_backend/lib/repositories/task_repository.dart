@@ -6,7 +6,7 @@ import '../models/task_model.dart';
 import '../services/task_qr_service.dart';
 
 abstract class TaskRepository {
-  Future<List<Task>> listTasks({String? familyId});
+  Future<List<Task>> listTasks({required String familyId});
   Future<Task?> getTask(String id);
   Future<Task> createTask({
     required String familyId,
@@ -36,14 +36,10 @@ class PostgresTaskRepository implements TaskRepository {
   PostgreSQLConnection get _conn => _db.raw;
 
   @override
-  Future<List<Task>> listTasks({String? familyId}) async {
-    final query = familyId == null
-        ? 'SELECT * FROM tasks ORDER BY due_date NULLS LAST, created_at DESC'
-        : 'SELECT * FROM tasks WHERE family_id = @familyId ORDER BY due_date NULLS LAST, created_at DESC';
-
+  Future<List<Task>> listTasks({required String familyId}) async {
     final results = await _conn.mappedResultsQuery(
-      query,
-      substitutionValues: familyId == null ? <String, dynamic>{} : {'familyId': familyId},
+      'SELECT * FROM tasks WHERE family_id = @familyId ORDER BY due_date NULLS LAST, created_at DESC',
+      substitutionValues: {'familyId': familyId},
     );
 
     return results

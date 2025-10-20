@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:homecare_backend/controllers/task_controller.dart';
-import 'package:homecare_backend/middleware/authentication_middleware.dart';
+import 'package:homecare_backend/models/auth_context.dart';
 import 'package:homecare_backend/models/task_model.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
@@ -65,9 +65,9 @@ class InMemoryTaskRepository implements TaskRepository {
   Future<Task?> getTask(String id) async => _tasks[id];
 
   @override
-  Future<List<Task>> listTasks({String? familyId}) async {
+  Future<List<Task>> listTasks({required String familyId}) async {
     return _tasks.values
-        .where((task) => familyId == null || task.familyId == familyId)
+        .where((task) => task.familyId == familyId)
         .toList();
   }
 
@@ -224,7 +224,7 @@ void main() {
       expect(eventHub.events.last['familyId'], equals('family-1'));
     });
 
-    test('lists tasks after creation', () async {
+    test('lists tasks for authenticated family only', () async {
       final createResponse = await _call(
         _authedRequest(
           'POST',
@@ -240,8 +240,22 @@ void main() {
           jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
       final taskId = (created['task'] as Map<String, dynamic>)['id'] as String;
 
+      await repository.createTask(
+        familyId: 'family-other',
+        title: 'Other family task',
+      );
+
       final listResponse = await _call(
-        _authedRequest('GET', '/?familyId=family-2'),
+        Request(
+          'GET',
+          Uri.parse('http://localhost/'),
+          context: {
+            'auth': const AuthContext(
+              userId: 'user-2',
+              familyId: 'family-2',
+            ),
+          },
+        ),
       );
 
       expect(listResponse.statusCode, equals(200));
@@ -250,6 +264,38 @@ void main() {
       final tasks = listBody['tasks'] as List<dynamic>;
       expect(tasks, hasLength(1));
       expect(tasks.first['id'], equals(taskId));
+      expect(tasks.first['familyId'], equals('family-2'));
+    });
+
+    test('list tasks returns 400 without auth context', () async {
+      final response = await _call(
+        Request('GET', Uri.parse('http://localhost/')),
+      );
+
+      expect(response.statusCode, equals(400));
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('missing_authentication_context'));
+    });
+
+    test('list tasks rejects family override attempts', () async {
+      final response = await _call(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/?familyId=family-override'),
+          context: {
+            'auth': const AuthContext(
+              userId: 'user-1',
+              familyId: 'family-actual',
+            ),
+          },
+        ),
+      );
+
+      expect(response.statusCode, equals(403));
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('family_id_mismatch'));
     });
 
     test('updates, assigns and completes task', () async {

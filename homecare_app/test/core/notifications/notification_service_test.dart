@@ -19,6 +19,10 @@ class _MockNotificationPermissionRequester extends Mock
 class _MockScheduledNotificationBox extends Mock
     implements Box<ScheduledNotification> {}
 
+class _MockGetLocalTimezone extends Mock {
+  Future<String> call();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -26,6 +30,7 @@ void main() {
   late _MockHiveInterface hive;
   late _MockNotificationPermissionRequester permissionRequester;
   late _MockScheduledNotificationBox box;
+  late _MockGetLocalTimezone getLocalTimezone;
   late NotificationService service;
 
   setUpAll(() {
@@ -48,6 +53,7 @@ void main() {
     hive = _MockHiveInterface();
     permissionRequester = _MockNotificationPermissionRequester();
     box = _MockScheduledNotificationBox();
+    getLocalTimezone = _MockGetLocalTimezone();
 
     when(() => hive.isAdapterRegistered(any())).thenReturn(true);
     when(() => hive.openBox<ScheduledNotification>(any()))
@@ -78,12 +84,18 @@ void main() {
     when(() => box.put(any(), any())).thenAnswer((_) async {});
     when(() => box.delete(any())).thenAnswer((_) async {});
     when(() => box.get(any())).thenReturn(null);
+    when(() => getLocalTimezone()).thenAnswer((_) async => 'America/New_York');
 
     service = NotificationService(
       flutterLocalNotificationsPlugin: plugin,
       hive: hive,
       permissionRequester: permissionRequester,
+      getLocalTimezone: getLocalTimezone,
     );
+  });
+
+  tearDown(() {
+    tz.setLocalLocation(tz.getLocation('UTC'));
   });
 
   test('schedules and persists a notification for future due dates', () async {
@@ -111,6 +123,8 @@ void main() {
       ),
     ).called(1);
     verify(() => box.put('task-1', any<ScheduledNotification>())).called(1);
+    verify(() => getLocalTimezone()).called(1);
+    expect(tz.local.name, 'America/New_York');
   });
 
   test('cancels reminders when the due date is in the past', () async {
@@ -137,6 +151,7 @@ void main() {
     verify(() => plugin.cancel(any())).called(greaterThanOrEqualTo(1));
     verify(() => box.delete('task-2')).called(1);
     verifyNever(() => box.put(any(), any()));
+    verify(() => getLocalTimezone()).called(1);
   });
 
   test('restores persisted notifications when initializing', () async {
@@ -179,5 +194,7 @@ void main() {
       ),
     ).called(1);
     verify(() => box.delete('past')).called(1);
+    verify(() => getLocalTimezone()).called(1);
+    expect(tz.local.name, 'America/New_York');
   });
 }

@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 
+import '../models/auth_context.dart';
 import '../models/task_model.dart';
 import '../repositories/task_repository.dart';
 import '../services/task_event_hub.dart';
@@ -37,12 +38,29 @@ class TaskController {
       };
 
   Future<Response> listTasks(Request request) async {
-    if (request.authenticatedUserId == null) {
-      return _unauthorizedResponse();
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
+      return Response(
+        400,
+        body: jsonEncode({'error': 'missing_authentication_context'}),
+      );
     }
 
-    final familyId = request.url.queryParameters['familyId'];
-    final tasks = await _repository.listTasks(familyId: familyId);
+    final overrideFamilyId = request.url.queryParameters['familyId'];
+    if (overrideFamilyId != null) {
+      if (overrideFamilyId != auth.familyId) {
+        return Response.forbidden(
+          jsonEncode({'error': 'family_id_mismatch'}),
+        );
+      }
+
+      return Response(
+        400,
+        body: jsonEncode({'error': 'family_id_query_not_allowed'}),
+      );
+    }
+
+    final tasks = await _repository.listTasks(familyId: auth.familyId);
     return Response.ok(jsonEncode({
       'tasks': tasks.map((t) => t.toJson()).toList(),
     }));
