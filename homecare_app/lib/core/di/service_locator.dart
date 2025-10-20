@@ -17,12 +17,13 @@ import 'package:homecare_app/features/tasks/data/repositories/task_repository_im
 import 'package:homecare_app/features/tasks/data/services/task_socket_service.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 final sl = GetIt.instance;
 
 Future<void> setupDependencies() async {
+  await Hive.initFlutter();
   _registerExternalDependencies();
   _registerCoreServices();
   _registerFeatureDependencies();
