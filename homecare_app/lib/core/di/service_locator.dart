@@ -1,10 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:homecare_app/core/socket/socket_service.dart';
 import 'package:homecare_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:homecare_app/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:homecare_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:homecare_app/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:homecare_app/features/chat/data/repositories/chat_repository.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 import 'package:homecare_app/core/constants/app_constants.dart';
@@ -17,7 +20,7 @@ import 'package:homecare_app/features/tasks/domain/repositories/task_repository.
 final sl = GetIt.instance;
 
 // Hàm khởi tạo và đăng ký tất cả các dependency
-Future<void> init() async {
+Future<void> setupDependencies() async {
   // -- Features - Auth --
 
   // Bloc
@@ -79,6 +82,8 @@ Future<void> init() async {
 
   // Flutter Secure Storage
   sl.registerLazySingleton(() => const FlutterSecureStorage());
+
+  sl.registerLazySingleton(() => SocketService(sl()));
 }
 
 Future<void> setupDependencies() => init();

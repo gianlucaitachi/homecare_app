@@ -1,10 +1,14 @@
 import 'dart:io';
-import 'package:shelf/shelf_io.dart' as shelf_io;
+
 import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
-// Import các thành phần theo đúng kiến trúc
+import 'package:homecare_backend/controllers/auth_controller.dart';
+import 'package:homecare_backend/controllers/chat_controller.dart';
+import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
+import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/controllers/auth_controller.dart';
@@ -20,17 +24,20 @@ Future<void> main(List<String> args) async {
   final userRepository = PostgresUserRepository(dbClient);
   final taskRepository = PostgresTaskRepository(dbClient);
 
-  // 3. Khởi tạo các Controller với Repository tương ứng
+  // 4. Khởi tạo các Controller với Repository tương ứng
   final authController = AuthController(userRepository);
   final taskEventHub = TaskEventHub();
   final taskController = TaskController(taskRepository, taskEventHub);
 
-  // 4. Thiết lập các routes
+  // 5. Thiết lập các routes
   final app = Router();
   app.post('/auth/register', authController.register);
   app.post('/auth/login', authController.login);
   app.post('/auth/refresh', authController.refresh);
   app.post('/auth/logout', authController.logout);
+  app.get('/families/<familyId>/messages', chatController.getMessages);
+  app.post('/families/<familyId>/messages', chatController.postMessage);
+  app.post('/tasks/<taskId>/events/updated', taskController.broadcastUpdate);
 
   app.mount('/api/tasks', taskController.router);
   app.get('/ws/tasks', taskController.socketHandler);
@@ -41,7 +48,8 @@ Future<void> main(List<String> args) async {
       .addHandler(app);
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
-  await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
+  final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
+  socketService.attachToHttpServer(server);
   print('Server listening on port $port');
 }
 
