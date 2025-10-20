@@ -1,3 +1,4 @@
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:shelf/shelf.dart';
 
 import '../services/jwt_service.dart';
@@ -6,11 +7,6 @@ import '../utils/request_context.dart';
 Middleware authenticationMiddleware(JwtService jwtService) {
   return (innerHandler) {
     return (request) async {
-      final path = request.url.path;
-      if (path.endsWith('auth/refresh')) {
-        return innerHandler(request);
-      }
-
       final authHeader = request.headers['Authorization'] ??
           request.headers['authorization'];
 
@@ -31,6 +27,9 @@ Middleware authenticationMiddleware(JwtService jwtService) {
                 attachAuthenticatedUser(request, subject);
             return innerHandler(updatedRequest);
           }
+        } on JWTExpiredException {
+          // Ignore expired access tokens. The refresh endpoint should still
+          // be able to read the request body after this middleware runs.
         } catch (_) {
           // Ignore and allow the handler to decide how to respond.
         }
