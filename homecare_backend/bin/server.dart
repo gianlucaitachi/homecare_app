@@ -13,131 +13,92 @@ import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/database.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
-import 'package:homecare_backend/models/auth_context.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/socket_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
-import 'package:homecare_backend/utils/request_context.dart';
 
 Future<void> main(List<String> args) async {
-  final db = DatabaseManager.fromEnv();
-  HttpServer? server;
-  var isShuttingDown = false;
+  // 1. Khởi tạo kết nối CSDL
+  final dbClient = PostgresClient.fromEnv();
+  await dbClient.connect();
 
-  Future<void> closeResources({bool exitProcess = false}) async {
-    if (isShuttingDown) {
-      return;
-    }
-    isShuttingDown = true;
-    await server?.close();
-    await db.close();
-    if (exitProcess) {
-      exit(0);
-    }
-  }
+  // 2. Khởi tạo các Repository
+  final userRepository = PostgresUserRepository(dbClient);
+  final taskRepository = PostgresTaskRepository(dbClient);
+  final messageRepository = PostgresMessageRepository(dbClient);
 
-  void handleSignal(ProcessSignal signal) {
-    unawaited(closeResources(exitProcess: true));
-  }
+  // 4. Khởi tạo các Controller với Repository tương ứng
+  final jwtService = JwtService();
 
-  try {
-    await db.open();
+  final authController = AuthController(
+    userRepository,
+    jwtService: jwtService,
+  );
+  final taskEventHub = TaskEventHub();
+  final taskController = TaskController(taskRepository, taskEventHub);
+  final socketAdapter = SocketIOServerAdapter();
+  final socketService =
+      SocketService(server: socketAdapter, messageRepository: messageRepository);
+  final chatController = ChatController(messageRepository, socketService);
 
-    // 2. Khởi tạo các Repository
-    final userRepository = PostgresUserRepository(db);
-    final taskRepository = PostgresTaskRepository(db);
-    final messageRepository = PostgresMessageRepository(db);
+  // 5. Thiết lập các routes
+  final app = Router();
+  final apiRouter = Router();
+  apiRouter.get('/health', (Request request) {
+    return Response.ok(jsonEncode({'status': 'ok'}));
+  });
 
-    // 4. Khởi tạo các Controller với Repository tương ứng
-    final jwtService = JwtService();
+  final authRouter = Router()
+    ..post('/register', authController.register)
+    ..post('/login', authController.login)
+    ..post('/refresh', authController.refresh)
+    ..post('/logout', authController.logout);
+  apiRouter.mount('/auth', authRouter);
 
-    final authController = AuthController(
-      userRepository,
-      jwtService: jwtService,
-    );
-    final taskEventHub = TaskEventHub();
-    final taskController = TaskController(taskRepository, taskEventHub);
-    final socketAdapter = SocketIOServerAdapter();
-    final socketService = SocketService(
-      server: socketAdapter,
-      messageRepository: messageRepository,
-    );
-    final chatController = ChatController(messageRepository, socketService);
+  final meRouter = Router()..get('/', authController.me);
 
-    // 5. Thiết lập các routes
-    final app = Router();
-    final apiRouter = Router();
-    apiRouter.get('/health', (Request request) {
-      return Response.ok(jsonEncode({'status': 'ok'}));
-    });
+  final familiesRouter = Router()
+    ..get('/<familyId>/messages', chatController.getMessages)
+    ..post('/<familyId>/messages', chatController.postMessage);
+  final protectedFamiliesHandler = _protectedHandler(
+    jwtService,
+    userRepository,
+    familiesRouter,
+  );
 
-    final authRouter = Router()
-      ..post('/register', authController.register)
-      ..post('/login', authController.login)
-      ..post('/refresh', authController.refresh)
-      ..post('/logout', authController.logout);
-    apiRouter.mount('/auth', authRouter);
+  final protectedTasksHandler = _protectedHandler(
+    jwtService,
+    userRepository,
+    taskController.router,
+  );
 
-    final meRouter = Router()..get('/', authController.me);
-    final protectedMeRouter = Pipeline()
-        .addMiddleware(_requireAuthContextMiddleware())
-        .addHandler(meRouter);
-    apiRouter.mount('/me', protectedMeRouter);
+  final protectedMeHandler = _protectedHandler(
+    jwtService,
+    userRepository,
+    meRouter,
+  );
 
-    final familiesRouter = Router()
-      ..get('/<familyId>/messages', chatController.getMessages)
-      ..post('/<familyId>/messages', chatController.postMessage);
-    final protectedFamiliesHandler = _protectedHandler(
-      jwtService,
-      userRepository,
-      familiesRouter,
-    );
+  apiRouter.mount('/families', protectedFamiliesHandler);
+  apiRouter.mount('/tasks', protectedTasksHandler);
+  apiRouter.mount('/me', protectedMeHandler);
+  app.mount('/api', apiRouter);
+  app.get('/ws/tasks', taskController.socketHandler);
 
-    final protectedTasksHandler = _protectedHandler(
-      jwtService,
-      userRepository,
-      taskController.router,
-    );
+  socketService.initialize();
 
-    final protectedMeHandler = _protectedHandler(
-      jwtService,
-      userRepository,
-      meRouter,
-    );
+  final handler = Pipeline()
+      .addMiddleware(corsHeaders())
+      .addMiddleware(logRequests())
+      .addMiddleware(_jsonResponseMiddleware())
+      .addHandler(app);
 
-    apiRouter.mount('/health', (Request request) async {
-      return Response.ok(jsonEncode({'status': 'ok'}));
-    });
-
-    apiRouter.mount('/families', protectedFamiliesHandler);
-    apiRouter.mount('/tasks', protectedTasksHandler);
-    apiRouter.mount('/me', protectedMeHandler);
-    app.mount('/api', apiRouter);
-    app.get('/ws/tasks', taskController.socketHandler);
-
-    socketService.initialize();
-
-    final handler = Pipeline()
-        .addMiddleware(corsHeaders())
-        .addMiddleware(logRequests())
-        .addMiddleware(_jsonResponseMiddleware())
-        .addHandler(app);
-
-    final port = int.parse(Platform.environment['PORT'] ?? '8080');
-    server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
-    socketService.attachToHttpServer(server);
-
-    ProcessSignal.sigint.watch().listen(handleSignal);
-    ProcessSignal.sigterm.watch().listen(handleSignal);
-
-    print('Server listening on port $port');
-  } catch (error) {
-    await closeResources();
-    rethrow;
-  }
+  final port = int.parse(Platform.environment['PORT'] ?? '8080');
+  final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
+  socketService.attachToHttpServer(server);
+  print('Server listening on port $port');
 }
 
 Handler _protectedHandler(
@@ -165,14 +126,3 @@ Middleware _jsonResponseMiddleware() {
   };
 }
 
-Middleware _requireAuthContextMiddleware() {
-  return (innerHandler) {
-    return (request) async {
-      final auth = request.context['auth'];
-      if (auth is! AuthContext) {
-        return Response(401, body: jsonEncode({'error': 'unauthorized'}));
-      }
-      return innerHandler(request);
-    };
-  };
-}
