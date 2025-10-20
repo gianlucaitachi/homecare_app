@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:homecare_backend/services/task_event_hub.dart';
+import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -45,6 +46,18 @@ class _TestTaskEventClient implements TaskEventClient {
   final _sink = _TestWebSocketSink();
 
   @override
+  int? get closeCode => null;
+
+  @override
+  String? get closeReason => null;
+
+  @override
+  String? get protocol => null;
+
+  @override
+  Future<void> get ready => Future.value();
+
+  @override
   Stream<dynamic> get stream => _controller.stream;
 
   @override
@@ -54,6 +67,7 @@ class _TestTaskEventClient implements TaskEventClient {
 
   void close() {
     _controller.close();
+    unawaited(_sink.close());
   }
 
   void addError(Object error) {
