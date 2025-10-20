@@ -4,6 +4,7 @@ import 'package:homecare_app/features/app_shell/presentation/authenticated_shell
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
+import 'package:homecare_app/features/chat/presentation/screens/chat_screen.dart';
 
 
 class AuthenticationGate extends StatelessWidget {

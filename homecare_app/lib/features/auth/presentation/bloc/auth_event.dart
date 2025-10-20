@@ -37,3 +37,8 @@ class RegisterRequested extends AuthEvent {
 
 // Event khi người dùng đăng xuất
 class LogoutRequested extends AuthEvent {}
+
+// Event để kiểm tra phiên đăng nhập hiện có
+class AuthCheckRequested extends AuthEvent {
+  const AuthCheckRequested();
+}
