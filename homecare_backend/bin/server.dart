@@ -9,7 +9,7 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:homecare_backend/controllers/auth_controller.dart';
 import 'package:homecare_backend/controllers/chat_controller.dart';
 import 'package:homecare_backend/controllers/task_controller.dart';
-import 'package:homecare_backend/db/postgres_client.dart';
+import 'package:homecare_backend/db/database.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
 import 'package:homecare_backend/models/auth_context.dart';
@@ -23,13 +23,12 @@ import 'package:homecare_backend/utils/request_context.dart';
 
 Future<void> main(List<String> args) async {
   // 1. Khởi tạo kết nối CSDL
-  final dbClient = PostgresClient.fromEnv();
-  await dbClient.connect();
+  final database = await DatabaseManager.connect();
 
   // 2. Khởi tạo các Repository
-  final userRepository = PostgresUserRepository(dbClient);
-  final taskRepository = PostgresTaskRepository(dbClient);
-  final messageRepository = PostgresMessageRepository(dbClient);
+  final userRepository = PostgresUserRepository(database);
+  final taskRepository = PostgresTaskRepository(database);
+  final messageRepository = PostgresMessageRepository(database);
 
   // 4. Khởi tạo các Controller với Repository tương ứng
   final jwtService = JwtService();
