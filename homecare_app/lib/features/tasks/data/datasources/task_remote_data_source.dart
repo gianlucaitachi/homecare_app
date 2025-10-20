@@ -26,14 +26,14 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   @override
   Future<TaskModel> assignTask(String id, String userId) async {
     final response =
-        await _apiClient.post('/tasks/$id/assign', data: {'userId': userId});
+        await _apiClient.post('api/tasks/$id/assign', data: {'userId': userId});
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
   @override
   Future<TaskModel> completeTaskByQrPayload(String payload) async {
     final response =
-        await _apiClient.post('/tasks/complete-qr', data: {'payload': payload});
+        await _apiClient.post('api/tasks/complete-qr', data: {'payload': payload});
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
@@ -53,25 +53,25 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       'assignedUserId': assignedUserId,
     }..removeWhere((key, value) => value == null);
 
-    final response = await _apiClient.post('/tasks', data: payload);
+    final response = await _apiClient.post('api/tasks', data: payload);
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
   @override
   Future<void> deleteTask(String id) async {
-    await _apiClient.delete('/tasks/$id');
+    await _apiClient.delete('api/tasks/$id');
   }
 
   @override
   Future<TaskModel> fetchTask(String id) async {
-    final response = await _apiClient.get('/tasks/$id');
+    final response = await _apiClient.get('api/tasks/$id');
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 
   @override
   Future<List<TaskModel>> fetchTasks({String? familyId}) async {
     final response = await _apiClient.get(
-      '/tasks',
+      'api/tasks',
       queryParameters: familyId == null ? null : {'familyId': familyId},
     );
     final data = response.data['tasks'] as List<dynamic>;
@@ -80,7 +80,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
 
   @override
   Future<TaskModel> updateTask(String id, Map<String, dynamic> payload) async {
-    final response = await _apiClient.put('/tasks/$id', data: payload);
+    final response = await _apiClient.put('api/tasks/$id', data: payload);
     return TaskModel.fromJson(response.data['task'] as Map<String, dynamic>);
   }
 }

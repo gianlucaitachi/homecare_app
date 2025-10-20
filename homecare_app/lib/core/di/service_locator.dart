@@ -38,7 +38,7 @@ void _registerExternalDependencies() {
       () => const FlutterSecureStorage(),
     )
     ..registerLazySingleton<ApiClient>(() {
-      final apiClient = ApiClient(AppConstants.apiBaseUrl, sl());
+      final apiClient = ApiClient(AppConstants.baseUrl, sl());
       apiClient.addInterceptor(
         PrettyDioLogger(
           requestHeader: true,
