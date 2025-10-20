@@ -2,8 +2,12 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
-import 'package:homecare_app/features/tasks/domain/entities/task_event.dart';
+import 'package:homecare_app/features/tasks/domain/entities/task_event.dart'
+    as domain;
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart'
+    as task_bloc;
 
 import 'task_list_event.dart';
 import 'task_list_state.dart';
@@ -11,8 +15,10 @@ import 'task_list_state.dart';
 class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
   TaskListBloc({
     required TaskRepository repository,
+    required TaskBloc taskBloc,
     this.familyId,
   })  : _repository = repository,
+        _taskBloc = taskBloc,
         super(const TaskListState()) {
     on<TaskListStarted>(_onStarted);
     on<TaskListRefreshRequested>(_onRefreshRequested);
@@ -20,9 +26,10 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
   }
 
   final TaskRepository _repository;
+  final TaskBloc _taskBloc;
   final String? familyId;
   String? _currentFamilyId;
-  StreamSubscription<TaskEvent>? _subscription;
+  StreamSubscription<domain.TaskEvent>? _subscription;
 
   Future<void> _onStarted(
     TaskListStarted event,
@@ -48,22 +55,59 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
       return;
     }
     final taskEvent = event.event;
-    var tasks = List<Task>.from(state.tasks);
+    final currentTasks = List<Task>.from(state.tasks);
+    List<Task>? nextTasks;
+    Task? previousTask;
+    Task? mutatedTask;
+    Task? deletedTask;
+
     switch (taskEvent.type) {
-      case TaskEventType.deleted:
-        tasks.removeWhere((task) => task.id == taskEvent.taskId);
+      case domain.TaskEventType.deleted:
+        final taskId = taskEvent.taskId;
+        if (taskId == null) {
+          break;
+        }
+        final index = currentTasks.indexWhere((task) => task.id == taskId);
+        if (index == -1) {
+          break;
+        }
+        deletedTask = currentTasks.removeAt(index);
+        nextTasks = currentTasks;
         break;
-      case TaskEventType.created:
-      case TaskEventType.updated:
-      case TaskEventType.assigned:
-      case TaskEventType.completed:
+      case domain.TaskEventType.created:
+      case domain.TaskEventType.updated:
+      case domain.TaskEventType.assigned:
+      case domain.TaskEventType.completed:
         final task = taskEvent.task;
-        if (task == null) return;
-        tasks = _upsertTask(tasks, task);
+        if (task == null) {
+          return;
+        }
+        final index = currentTasks.indexWhere((element) => element.id == task.id);
+        if (index != -1) {
+          previousTask = currentTasks[index];
+        }
+        mutatedTask = task;
+        nextTasks = _upsertTask(currentTasks, task);
         break;
     }
 
-    emit(state.copyWith(tasks: tasks));
+    if (nextTasks == null) {
+      return;
+    }
+
+    emit(state.copyWith(tasks: nextTasks));
+
+    if (mutatedTask != null) {
+      if (previousTask != null) {
+        _taskBloc.add(
+          task_bloc.TaskUpdated(previousTask: previousTask, updatedTask: mutatedTask),
+        );
+      } else {
+        _taskBloc.add(task_bloc.TaskCreated(mutatedTask));
+      }
+    } else if (deletedTask != null) {
+      _taskBloc.add(task_bloc.TaskDeleted(deletedTask));
+    }
   }
 
   Future<void> _loadTasks(
@@ -76,13 +120,15 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
     }
     try {
       final tasks = await _repository.fetchTasks(familyId: familyId);
+      final sortedTasks = _sortTasks(tasks);
       emit(
         state.copyWith(
           status: TaskListStatus.success,
-          tasks: _sortTasks(tasks),
+          tasks: sortedTasks,
           errorMessage: null,
         ),
       );
+      _syncPendingReminders(sortedTasks);
     } catch (error) {
       emit(
         state.copyWith(
@@ -98,6 +144,16 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
     _subscription = _repository
         .subscribeToTaskEvents(familyId: _currentFamilyId)
         .listen((event) => add(TaskListTaskEventReceived(event)));
+  }
+
+  void _syncPendingReminders(List<Task> tasks) {
+    final pendingWithDueDate = tasks
+        .where((task) => !task.isCompleted && task.dueDate != null)
+        .toList();
+    if (pendingWithDueDate.isEmpty) {
+      return;
+    }
+    _taskBloc.add(task_bloc.TaskRemindersSynced(pendingWithDueDate));
   }
 
   List<Task> _upsertTask(List<Task> tasks, Task task) {

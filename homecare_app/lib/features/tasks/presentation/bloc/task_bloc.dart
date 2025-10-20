@@ -11,6 +11,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     on<TaskCreated>(_onTaskCreated);
     on<TaskUpdated>(_onTaskUpdated);
     on<TaskDeleted>(_onTaskDeleted);
+    on<TaskRemindersSynced>(_onTaskRemindersSynced);
   }
 
   final NotificationService _notificationService;
@@ -78,6 +79,15 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
           errorMessage: error.toString(),
         ),
       );
+    }
+  }
+
+  Future<void> _onTaskRemindersSynced(
+    TaskRemindersSynced event,
+    Emitter<TaskState> emit,
+  ) async {
+    for (final task in event.tasks) {
+      await _scheduleReminderIfNeeded(task);
     }
   }
 

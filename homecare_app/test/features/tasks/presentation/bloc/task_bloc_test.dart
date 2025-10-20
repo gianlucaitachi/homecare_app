@@ -157,4 +157,26 @@ void main() {
           .called(greaterThanOrEqualTo(1));
     },
   );
+
+  blocTest<TaskBloc, TaskState>(
+    'schedules reminders when syncing pending tasks',
+    build: () => TaskBloc(notificationService: notificationService),
+    act: (bloc) {
+      final anotherTask = taskWithDueDate.copyWith(
+        id: '2',
+        title: 'Another Task',
+        dueDate: taskWithDueDate.dueDate!.add(const Duration(hours: 1)),
+      );
+      bloc.add(TaskRemindersSynced([taskWithDueDate, anotherTask]));
+    },
+    expect: () => <TaskState>[],
+    verify: (_) {
+      verify(() => notificationService.scheduleTaskReminder(
+            taskId: any(named: 'taskId'),
+            title: any(named: 'title'),
+            body: any(named: 'body'),
+            dueDate: any(named: 'dueDate'),
+          )).called(2);
+    },
+  );
 }

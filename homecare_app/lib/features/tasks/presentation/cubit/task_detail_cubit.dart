@@ -1,17 +1,22 @@
 import 'package:bloc/bloc.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart';
 
 import 'task_detail_state.dart';
 
 class TaskDetailCubit extends Cubit<TaskDetailState> {
   TaskDetailCubit({
     required TaskRepository repository,
+    required TaskBloc taskBloc,
     required this.taskId,
   })  : _repository = repository,
+        _taskBloc = taskBloc,
         super(const TaskDetailState());
 
   final TaskRepository _repository;
+  final TaskBloc _taskBloc;
   final String taskId;
 
   Future<void> load() async {
@@ -40,6 +45,7 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
   Future<void> assignTo(String userId) async {
     emit(state.copyWith(actionStatus: TaskDetailActionStatus.inProgress));
     try {
+      final previousTask = state.task;
       final updated = await _repository.assignTask(taskId, userId);
       emit(
         state.copyWith(
@@ -48,6 +54,13 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
           actionMessage: 'Assigned to caregiver',
         ),
       );
+      if (previousTask != null) {
+        _taskBloc.add(
+          TaskUpdated(previousTask: previousTask, updatedTask: updated),
+        );
+      } else {
+        _taskBloc.add(TaskCreated(updated));
+      }
     } catch (error) {
       emit(
         state.copyWith(
@@ -61,6 +74,7 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
   Future<void> completeWithQr(String payload) async {
     emit(state.copyWith(actionStatus: TaskDetailActionStatus.inProgress));
     try {
+      final previousTask = state.task;
       final updated = await _repository.completeTaskByQrPayload(payload);
       emit(
         state.copyWith(
@@ -69,6 +83,13 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
           actionMessage: 'Task completed',
         ),
       );
+      if (previousTask != null) {
+        _taskBloc.add(
+          TaskUpdated(previousTask: previousTask, updatedTask: updated),
+        );
+      } else {
+        _taskBloc.add(TaskCreated(updated));
+      }
     } catch (error) {
       emit(
         state.copyWith(
