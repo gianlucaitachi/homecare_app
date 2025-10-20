@@ -23,6 +23,7 @@ dependencies:
   shared_preferences: ^2.2.2
   connectivity_plus: ^7.0.0
   socket_io_client: ^3.1.2
+  web_socket_channel: ^3.0.1
 
   # Firebase & Notifications
   firebase_messaging: ^16.0.3
@@ -46,8 +47,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  bloc_test: ^9.1.7
-  mocktail: ^1.0.4
+  bloc_test: ^9.1.6
+  mocktail: ^1.0.3
 
   # Code generation & debugging
   build_runner: ^2.4.11

@@ -1,9 +1,9 @@
-import 'package:equatable/equatable.dart';
-
 enum TaskStatus { pending, inProgress, completed;
 
-  factory TaskStatus.fromString(String value) {
+  static TaskStatus fromString(String value) {
     switch (value) {
+      case 'pending':
+        return TaskStatus.pending;
       case 'in_progress':
         return TaskStatus.inProgress;
       case 'completed':
@@ -13,28 +13,22 @@ enum TaskStatus { pending, inProgress, completed;
     }
   }
 
-  String get apiValue => switch (this) {
+  String get value => switch (this) {
         TaskStatus.pending => 'pending',
         TaskStatus.inProgress => 'in_progress',
         TaskStatus.completed => 'completed',
       };
-
-  String get label => switch (this) {
-        TaskStatus.pending => 'Pending',
-        TaskStatus.inProgress => 'In progress',
-        TaskStatus.completed => 'Completed',
-      };
 }
 
-class Task extends Equatable {
-  const Task({
+class Task {
+  Task({
     required this.id,
     required this.familyId,
+    this.assignedUserId,
     required this.title,
     this.description,
     required this.status,
     this.dueDate,
-    this.assignedUserId,
     required this.qrPayload,
     required this.qrImageBase64,
     required this.createdAt,
@@ -44,27 +38,57 @@ class Task extends Equatable {
 
   final String id;
   final String familyId;
+  final String? assignedUserId;
   final String title;
   final String? description;
   final TaskStatus status;
   final DateTime? dueDate;
-  final String? assignedUserId;
   final String qrPayload;
   final String qrImageBase64;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
 
-  bool get isCompleted => status == TaskStatus.completed;
+  factory Task.fromRow(Map<String, dynamic> row) {
+    return Task(
+      id: row['id'] as String,
+      familyId: row['family_id'] as String,
+      assignedUserId: row['assigned_user_id'] as String?,
+      title: row['title'] as String,
+      description: row['description'] as String?,
+      status: TaskStatus.fromString(row['status'] as String),
+      dueDate: row['due_date'] as DateTime?,
+      qrPayload: row['qr_payload'] as String,
+      qrImageBase64: row['qr_image_base64'] as String,
+      createdAt: row['created_at'] as DateTime,
+      updatedAt: row['updated_at'] as DateTime,
+      completedAt: row['completed_at'] as DateTime?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'familyId': familyId,
+        'assignedUserId': assignedUserId,
+        'title': title,
+        'description': description,
+        'status': status.value,
+        'dueDate': dueDate?.toIso8601String(),
+        'qrPayload': qrPayload,
+        'qrImageBase64': qrImageBase64,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+        'completedAt': completedAt?.toIso8601String(),
+      };
 
   Task copyWith({
     String? id,
     String? familyId,
+    String? assignedUserId,
     String? title,
     String? description,
     TaskStatus? status,
     DateTime? dueDate,
-    String? assignedUserId,
     String? qrPayload,
     String? qrImageBase64,
     DateTime? createdAt,
@@ -74,11 +98,11 @@ class Task extends Equatable {
     return Task(
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
+      assignedUserId: assignedUserId ?? this.assignedUserId,
       title: title ?? this.title,
       description: description ?? this.description,
       status: status ?? this.status,
       dueDate: dueDate ?? this.dueDate,
-      assignedUserId: assignedUserId ?? this.assignedUserId,
       qrPayload: qrPayload ?? this.qrPayload,
       qrImageBase64: qrImageBase64 ?? this.qrImageBase64,
       createdAt: createdAt ?? this.createdAt,
@@ -86,20 +110,4 @@ class Task extends Equatable {
       completedAt: completedAt ?? this.completedAt,
     );
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        familyId,
-        title,
-        description,
-        status,
-        dueDate,
-        assignedUserId,
-        qrPayload,
-        qrImageBase64,
-        createdAt,
-        updatedAt,
-        completedAt,
-      ];
 }
