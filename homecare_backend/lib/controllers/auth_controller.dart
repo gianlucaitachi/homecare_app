@@ -39,12 +39,15 @@ class AuthController {
 
     final passwordHash = _passwordService.hashPassword(password);
     final userId = _uuid.v4();
+    final familyId = _uuid.v4();
 
     final user = await _userRepository.createUser(
       id: userId,
       name: name,
       email: email,
       passwordHash: passwordHash,
+      familyId: familyId,
+      familyName: "${name}'s Family",
     );
 
     final accessToken = _jwtService.signAccessToken({'sub': user.id});
