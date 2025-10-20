@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
@@ -20,11 +22,15 @@ class TaskDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final taskBloc = context.read<TaskBloc>();
     return BlocProvider(
-      create: (_) => TaskDetailCubit(
-        repository: sl<TaskRepository>(),
-        taskBloc: taskBloc,
-        taskId: taskId,
-      )..load(),
+      create: (_) {
+        final cubit = TaskDetailCubit(
+          repository: sl<TaskRepository>(),
+          taskBloc: taskBloc,
+          taskId: taskId,
+        );
+        unawaited(cubit.load());
+        return cubit;
+      },
       child: _TaskDetailView(taskId: taskId),
     );
   }

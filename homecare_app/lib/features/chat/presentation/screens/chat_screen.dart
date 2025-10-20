@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,11 +16,15 @@ class ChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ChatCubit(
-        chatRepository: sl<ChatRepository>(),
-        socketService: sl(),
-        currentUserId: currentUserId,
-      )..initialize(familyId: familyId),
+      create: (_) {
+        final cubit = ChatCubit(
+          chatRepository: sl<ChatRepository>(),
+          socketService: sl(),
+          currentUserId: currentUserId,
+        );
+        unawaited(cubit.initialize(familyId: familyId));
+        return cubit;
+      },
       child: const _ChatView(),
     );
   }
