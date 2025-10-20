@@ -46,21 +46,21 @@ class TaskController {
       );
     }
 
-    final overrideFamilyId = request.url.queryParameters['familyId'];
-    if (overrideFamilyId != null) {
+    final overrideFamilyId = request.url.queryParameters['familyId']?.trim();
+    if (overrideFamilyId != null && overrideFamilyId.isNotEmpty) {
       if (overrideFamilyId != auth.familyId) {
         return Response.forbidden(
           jsonEncode({'error': 'family_id_mismatch'}),
         );
       }
-
-      return Response(
-        400,
-        body: jsonEncode({'error': 'family_id_query_not_allowed'}),
-      );
     }
 
-    final tasks = await _repository.listTasks(familyId: auth.familyId);
+    final effectiveFamilyId =
+        (overrideFamilyId != null && overrideFamilyId.isNotEmpty)
+            ? overrideFamilyId
+            : auth.familyId;
+
+    final tasks = await _repository.listTasks(familyId: effectiveFamilyId);
     return Response.ok(jsonEncode({
       'tasks': tasks.map((t) => t.toJson()).toList(),
     }));
