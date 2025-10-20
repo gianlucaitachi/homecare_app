@@ -4,8 +4,8 @@ import 'package:homecare_app/features/app_shell/presentation/authenticated_shell
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
-import 'package:homecare_app/features/chat/presentation/screens/chat_screen.dart';
 
+import 'package:homecare_app/features/tasks/presentation/screens/task_list_screen.dart';
 
 class AuthenticationGate extends StatelessWidget {
   const AuthenticationGate({super.key});
@@ -14,10 +14,9 @@ class AuthenticationGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        if (state is Authenticated) {
-          // Người dùng đã đăng nhập, hiển thị luồng chính của ứng dụng
-          return const AuthenticatedShell();
-        } else if (state is Unauthenticated || state is AuthFailure) {
+        if (state is AuthAuthenticated) {
+          return const TaskListScreen();
+        } else if (state is AuthUnauthenticated || state is AuthFailure) {
           // Người dùng chưa đăng nhập hoặc có lỗi, hiển thị màn hình đăng nhập
           return const LoginScreen();
         } else {

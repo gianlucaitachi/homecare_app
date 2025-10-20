@@ -10,7 +10,10 @@ import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
-import 'package:homecare_backend/services/socket_service.dart';
+import 'package:homecare_backend/repositories/task_repository.dart';
+import 'package:homecare_backend/controllers/auth_controller.dart';
+import 'package:homecare_backend/controllers/task_controller.dart';
+import 'package:homecare_backend/services/task_event_hub.dart';
 
 Future<void> main(List<String> args) async {
   // 1. Khởi tạo kết nối CSDL
@@ -19,20 +22,12 @@ Future<void> main(List<String> args) async {
 
   // 2. Khởi tạo các Repository
   final userRepository = PostgresUserRepository(dbClient);
-  final messageRepository = PostgresMessageRepository(dbClient);
-
-  // 3. Khởi tạo Socket service
-  final socketAdapter = SocketIOServerAdapter();
-  final socketService = SocketService(
-    server: socketAdapter,
-    messageRepository: messageRepository,
-  );
-  socketService.initialize();
+  final taskRepository = PostgresTaskRepository(dbClient);
 
   // 4. Khởi tạo các Controller với Repository tương ứng
   final authController = AuthController(userRepository);
-  final chatController = ChatController(messageRepository, socketService);
-  final taskController = TaskController(socketService);
+  final taskEventHub = TaskEventHub();
+  final taskController = TaskController(taskRepository, taskEventHub);
 
   // 5. Thiết lập các routes
   final app = Router();
@@ -44,9 +39,8 @@ Future<void> main(List<String> args) async {
   app.post('/families/<familyId>/messages', chatController.postMessage);
   app.post('/tasks/<taskId>/events/updated', taskController.broadcastUpdate);
 
-  // Thêm các routes cho các chức năng khác ở đây
-  // ví dụ: final tasksController = TasksController(tasksRepository);
-  // app.get('/tasks', tasksController.getTasks);
+  app.mount('/api/tasks', taskController.router);
+  app.get('/ws/tasks', taskController.socketHandler);
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
