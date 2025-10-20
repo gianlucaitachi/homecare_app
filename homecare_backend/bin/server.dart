@@ -6,7 +6,10 @@ import 'package:shelf_router/shelf_router.dart';
 // Import các thành phần theo đúng kiến trúc
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
+import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/controllers/auth_controller.dart';
+import 'package:homecare_backend/controllers/task_controller.dart';
+import 'package:homecare_backend/services/task_event_hub.dart';
 
 Future<void> main(List<String> args) async {
   // 1. Khởi tạo kết nối CSDL
@@ -15,9 +18,12 @@ Future<void> main(List<String> args) async {
 
   // 2. Khởi tạo các Repository
   final userRepository = PostgresUserRepository(dbClient);
+  final taskRepository = PostgresTaskRepository(dbClient);
 
   // 3. Khởi tạo các Controller với Repository tương ứng
   final authController = AuthController(userRepository);
+  final taskEventHub = TaskEventHub();
+  final taskController = TaskController(taskRepository, taskEventHub);
 
   // 4. Thiết lập các routes
   final app = Router();
@@ -26,9 +32,8 @@ Future<void> main(List<String> args) async {
   app.post('/auth/refresh', authController.refresh);
   app.post('/auth/logout', authController.logout);
 
-  // Thêm các routes cho các chức năng khác ở đây
-  // ví dụ: final tasksController = TasksController(tasksRepository);
-  // app.get('/tasks', tasksController.getTasks);
+  app.mount('/api/tasks', taskController.router);
+  app.get('/ws/tasks', taskController.socketHandler);
 
   final handler = Pipeline()
       .addMiddleware(logRequests())

@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
@@ -7,6 +6,12 @@ import 'package:homecare_app/features/auth/data/repositories/auth_repository_imp
 import 'package:homecare_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+
+import 'package:homecare_app/core/constants/app_constants.dart';
+import 'package:homecare_app/features/tasks/data/datasources/task_remote_data_source.dart';
+import 'package:homecare_app/features/tasks/data/repositories/task_repository_impl.dart';
+import 'package:homecare_app/features/tasks/data/services/task_socket_service.dart';
+import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
 
 // Khởi tạo instance của GetIt
 final sl = GetIt.instance;
@@ -35,11 +40,30 @@ Future<void> init() async {
     () => AuthRemoteDataSourceImpl(dio: sl()),
   );
 
+  // -- Features - Tasks --
+  sl.registerLazySingleton<TaskSocketService>(
+    () => TaskSocketService(baseUrl: AppConstants.baseUrl),
+  );
+
+  sl.registerLazySingleton<TaskRemoteDataSource>(
+    () => TaskRemoteDataSourceImpl(
+      dio: sl(),
+      baseUrl: AppConstants.baseUrl,
+    ),
+  );
+
+  sl.registerLazySingleton<TaskRepository>(
+    () => TaskRepositoryImpl(
+      remoteDataSource: sl(),
+      socketService: sl(),
+    ),
+  );
+
   // -- Core & External --
 
   // Dio (for networking)
   sl.registerLazySingleton(() {
-    final dio = Dio();
+    final dio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
     // Thêm logger để debug network, chỉ trong chế độ debug
     dio.interceptors.add(PrettyDioLogger(
       requestHeader: true,
@@ -56,3 +80,5 @@ Future<void> init() async {
   // Flutter Secure Storage
   sl.registerLazySingleton(() => const FlutterSecureStorage());
 }
+
+Future<void> setupDependencies() => init();

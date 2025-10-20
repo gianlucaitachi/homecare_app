@@ -4,19 +4,7 @@ import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
 
-// Placeholder cho màn hình chính của bạn
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: const Center(child: Text('Welcome!')),
-    );
-  }
-}
-
+import 'package:homecare_app/features/tasks/presentation/screens/task_list_screen.dart';
 
 class AuthenticationGate extends StatelessWidget {
   const AuthenticationGate({super.key});
@@ -26,8 +14,7 @@ class AuthenticationGate extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state is AuthAuthenticated) {
-          // Người dùng đã đăng nhập, hiển thị màn hình chính
-          return const HomeScreen();
+          return const TaskListScreen();
         } else if (state is AuthUnauthenticated || state is AuthFailure) {
           // Người dùng chưa đăng nhập hoặc có lỗi, hiển thị màn hình đăng nhập
           return const LoginScreen();
