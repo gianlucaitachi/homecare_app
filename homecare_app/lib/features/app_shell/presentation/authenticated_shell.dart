@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
 import 'package:homecare_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:homecare_app/features/dashboard/presentation/dashboard_module.dart';
+import 'package:homecare_app/features/profile/presentation/profile_screen.dart';
 import 'package:homecare_app/features/tasks/presentation/tasks_module.dart';
 
 class AuthenticatedShell extends StatefulWidget {
@@ -32,6 +33,11 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
       selectedIcon: Icon(Icons.chat),
       label: 'Chat',
     ),
+    NavigationDestination(
+      icon: Icon(Icons.person_outline),
+      selectedIcon: Icon(Icons.person),
+      label: 'Profile',
+    ),
   ];
 
   List<Widget> get _pages {
@@ -51,6 +57,10 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
         key: const PageStorageKey('chat'),
         familyId: user.familyId,
         currentUserId: user.id,
+      ),
+      ProfileScreen(
+        key: const PageStorageKey('profile'),
+        session: widget.session,
       ),
     ];
   }
