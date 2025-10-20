@@ -49,10 +49,16 @@ void main() {
       String path, {
       Map<String, String>? headers,
       Object? body,
+      AuthContext? authContext,
     }) {
       final updatedHeaders = <String, String>{
         'Authorization': 'Bearer $accessToken',
         ...?headers,
+      };
+
+      final context = <String, Object?>{
+        'auth': authContext ??
+            const AuthContext(userId: 'user-42', familyId: 'family-1'),
       };
 
       return Request(
@@ -60,6 +66,7 @@ void main() {
         Uri.parse('http://localhost$path'),
         headers: updatedHeaders,
         body: body,
+        context: context,
       );
     }
 
@@ -117,14 +124,14 @@ void main() {
       final message = Message(
         id: '1',
         familyId: 'family-1',
-        senderId: 'user-1',
+        senderId: 'user-42',
         content: 'Hello',
         createdAt: DateTime.parse('2024-01-01T12:00:00Z'),
       );
 
       when(() => repository.createMessage(
             familyId: 'family-1',
-            senderId: 'user-1',
+            senderId: 'user-42',
             content: 'Hello',
           )).thenAnswer((_) async => message);
 
@@ -146,6 +153,40 @@ void main() {
             senderId: 'user-42',
             content: 'Hello',
           )).called(1);
+    });
+
+    test('getMessages returns 403 when family does not match auth context',
+        () async {
+      final request = _authedRequest(
+        'GET',
+        '/api/families/family-1/messages',
+        authContext:
+            const AuthContext(userId: 'user-42', familyId: 'family-2'),
+      );
+
+      final response = await handler(request);
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, equals(403));
+      expect(body['error'], equals('family_id_mismatch'));
+    });
+
+    test('postMessage returns 403 when family does not match auth context',
+        () async {
+      final request = _authedRequest(
+        'POST',
+        '/api/families/family-1/messages',
+        authContext:
+            const AuthContext(userId: 'user-42', familyId: 'family-2'),
+        body: jsonEncode({'content': 'Hello'}),
+        headers: {'content-type': 'application/json'},
+      );
+
+      final response = await handler(request);
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, equals(403));
+      expect(body['error'], equals('family_id_mismatch'));
     });
 
     test('connectWebSocket returns 401 when auth context is missing', () async {
