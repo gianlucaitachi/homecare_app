@@ -82,7 +82,14 @@ class TaskRepositoryImpl implements TaskRepository {
       task = TaskModel.fromJson(taskData);
     }
     final taskId = data['taskId'] as String? ?? task?.id;
-    return TaskEvent(type: type, task: task, taskId: taskId);
+    final familyId =
+        data['familyId'] as String? ?? task?.familyId;
+    return TaskEvent(
+      type: type,
+      task: task,
+      taskId: taskId,
+      familyId: familyId,
+    );
   }
 
   @override

@@ -27,9 +27,13 @@ class TaskController {
     return router;
   }
 
-  Handler get socketHandler => webSocketHandler((socket) {
-        _eventHub.addClient(socket);
-      });
+  Handler get socketHandler => (Request request) {
+        final familyId = request.url.queryParameters['familyId'];
+        final handler = webSocketHandler((socket) {
+          _eventHub.addClient(socket, familyId: familyId);
+        });
+        return handler(request);
+      };
 
   Future<Response> listTasks(Request request) async {
     final familyId = request.url.queryParameters['familyId'];
@@ -65,6 +69,7 @@ class TaskController {
     _eventHub.broadcast({
       'type': 'task.created',
       'task': task.toJson(),
+      'familyId': task.familyId,
     });
 
     return Response(201, body: jsonEncode({'task': task.toJson()}));
@@ -127,6 +132,7 @@ class TaskController {
     _eventHub.broadcast({
       'type': 'task.updated',
       'task': updated.toJson(),
+      'familyId': updated.familyId,
     });
 
     return Response.ok(jsonEncode({'task': updated.toJson()}));
@@ -142,6 +148,7 @@ class TaskController {
     _eventHub.broadcast({
       'type': 'task.deleted',
       'taskId': id,
+      'familyId': existing.familyId,
     });
     return Response(204);
   }
@@ -161,6 +168,7 @@ class TaskController {
     _eventHub.broadcast({
       'type': 'task.assigned',
       'task': task.toJson(),
+      'familyId': task.familyId,
     });
 
     return Response.ok(jsonEncode({'task': task.toJson()}));
@@ -202,6 +210,7 @@ class TaskController {
     _eventHub.broadcast({
       'type': 'task.completed',
       'task': task.toJson(),
+      'familyId': task.familyId,
     });
 
     return Response.ok(jsonEncode({'task': task.toJson()}));

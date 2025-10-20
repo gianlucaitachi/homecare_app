@@ -9,12 +9,14 @@ class TaskEvent extends Equatable {
     required this.type,
     this.task,
     this.taskId,
+    this.familyId,
   });
 
   final TaskEventType type;
   final Task? task;
   final String? taskId;
+  final String? familyId;
 
   @override
-  List<Object?> get props => [type, task, taskId];
+  List<Object?> get props => [type, task, taskId, familyId];
 }

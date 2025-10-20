@@ -55,6 +55,13 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
       return;
     }
     final taskEvent = event.event;
+    final activeFamilyId = _currentFamilyId ?? familyId;
+    final eventFamilyId = taskEvent.familyId ?? taskEvent.task?.familyId;
+    if (activeFamilyId != null &&
+        eventFamilyId != null &&
+        eventFamilyId != activeFamilyId) {
+      return;
+    }
     final currentTasks = List<Task>.from(state.tasks);
     List<Task>? nextTasks;
     Task? previousTask;
