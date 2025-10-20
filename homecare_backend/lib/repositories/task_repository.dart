@@ -7,7 +7,7 @@ import '../services/task_qr_service.dart';
 
 abstract class TaskRepository {
   Future<List<Task>> listTasks({required String familyId});
-  Future<Task?> getTask(String id);
+  Future<Task?> getTask(String id, {required String familyId});
   Future<Task> createTask({
     required String familyId,
     required String title,
@@ -15,10 +15,24 @@ abstract class TaskRepository {
     DateTime? dueDate,
     String? assignedUserId,
   });
-  Future<Task?> updateTask(String id, Map<String, dynamic> fields);
-  Future<void> deleteTask(String id);
-  Future<Task?> assignTask(String id, String userId);
-  Future<Task?> completeTaskByQrPayload(String payload);
+  Future<Task?> updateTask(
+    String id,
+    Map<String, dynamic> fields, {
+    required String familyId,
+  });
+
+  Future<void> deleteTask(String id, {required String familyId});
+
+  Future<Task?> assignTask(
+    String id,
+    String userId, {
+    required String familyId,
+  });
+
+  Future<Task?> completeTaskByQrPayload(
+    String payload, {
+    required String familyId,
+  });
 }
 
 class PostgresTaskRepository implements TaskRepository {
@@ -48,10 +62,10 @@ class PostgresTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<Task?> getTask(String id) async {
+  Future<Task?> getTask(String id, {required String familyId}) async {
     final results = await _conn.mappedResultsQuery(
-      'SELECT * FROM tasks WHERE id = @id LIMIT 1',
-      substitutionValues: {'id': id},
+      'SELECT * FROM tasks WHERE id = @id AND family_id = @familyId LIMIT 1',
+      substitutionValues: {'id': id, 'familyId': familyId},
     );
     if (results.isEmpty) return null;
     return Task.fromRow(results.first['tasks']!);
@@ -88,20 +102,28 @@ class PostgresTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<Task?> updateTask(String id, Map<String, dynamic> fields) async {
+  Future<Task?> updateTask(
+    String id,
+    Map<String, dynamic> fields, {
+    required String familyId,
+  }) async {
     if (fields.isEmpty) {
-      return getTask(id);
+      return getTask(id, familyId: familyId);
     }
 
     final setClauses = <String>[];
-    final values = <String, dynamic>{'id': id};
+    final values = <String, dynamic>{
+      'id': id,
+      'familyId': familyId,
+    };
 
     fields.forEach((column, value) {
       setClauses.add('$column = @$column');
       values[column] = value;
     });
 
-    final query = 'UPDATE tasks SET ${setClauses.join(', ')} WHERE id = @id RETURNING *';
+    final query =
+        'UPDATE tasks SET ${setClauses.join(', ')} WHERE id = @id AND family_id = @familyId RETURNING *';
 
     final results = await _conn.mappedResultsQuery(query, substitutionValues: values);
     if (results.isEmpty) return null;
@@ -109,18 +131,30 @@ class PostgresTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<void> deleteTask(String id) async {
-    await _conn.query('DELETE FROM tasks WHERE id = @id', substitutionValues: {'id': id});
+  Future<void> deleteTask(String id, {required String familyId}) async {
+    await _conn.query(
+      'DELETE FROM tasks WHERE id = @id AND family_id = @familyId',
+      substitutionValues: {
+        'id': id,
+        'familyId': familyId,
+      },
+    );
   }
 
   @override
-  Future<Task?> assignTask(String id, String userId) async {
+  Future<Task?> assignTask(
+    String id,
+    String userId, {
+    required String familyId,
+  }) async {
     final results = await _conn.mappedResultsQuery(
-      'UPDATE tasks SET assigned_user_id = @userId, status = @status WHERE id = @id RETURNING *',
+      'UPDATE tasks SET assigned_user_id = @userId, status = @status '
+      'WHERE id = @id AND family_id = @familyId RETURNING *',
       substitutionValues: {
         'id': id,
         'userId': userId,
         'status': TaskStatus.inProgress.value,
+        'familyId': familyId,
       },
     );
     if (results.isEmpty) return null;
@@ -128,12 +162,17 @@ class PostgresTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<Task?> completeTaskByQrPayload(String payload) async {
+  Future<Task?> completeTaskByQrPayload(
+    String payload, {
+    required String familyId,
+  }) async {
     final results = await _conn.mappedResultsQuery(
-      'UPDATE tasks SET status = @status, completed_at = NOW() WHERE qr_payload = @payload RETURNING *',
+      'UPDATE tasks SET status = @status, completed_at = NOW() '
+      'WHERE qr_payload = @payload AND family_id = @familyId RETURNING *',
       substitutionValues: {
         'payload': payload,
         'status': TaskStatus.completed.value,
+        'familyId': familyId,
       },
     );
     if (results.isEmpty) return null;
