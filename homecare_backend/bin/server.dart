@@ -35,15 +35,22 @@ Future<void> main(List<String> args) async {
 
   // 5. Thiết lập các routes
   final app = Router();
-  app.post('/auth/register', authController.register);
-  app.post('/auth/login', authController.login);
-  app.post('/auth/refresh', authController.refresh);
-  app.post('/auth/logout', authController.logout);
-  app.get('/families/<familyId>/messages', chatController.getMessages);
-  app.post('/families/<familyId>/messages', chatController.postMessage);
-  app.post('/tasks/<taskId>/events/updated', taskController.broadcastUpdate);
+  final apiRouter = Router();
 
-  app.mount('/api/tasks', taskController.router);
+  final authRouter = Router()
+    ..post('/register', authController.register)
+    ..post('/login', authController.login)
+    ..post('/refresh', authController.refresh)
+    ..post('/logout', authController.logout);
+  apiRouter.mount('/auth', authRouter);
+
+  final familiesRouter = Router()
+    ..get('/<familyId>/messages', chatController.getMessages)
+    ..post('/<familyId>/messages', chatController.postMessage);
+  apiRouter.mount('/families', familiesRouter);
+
+  apiRouter.mount('/tasks', taskController.router);
+  app.mount('/api', apiRouter);
   app.get('/ws/tasks', taskController.socketHandler);
 
   socketService.initialize();
