@@ -98,7 +98,7 @@ Future<void> main(List<String> args) async {
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
   final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
   socketService.attachToHttpServer(server);
-  print('Server listening on port $port');
+  stdout.writeln('Server listening on port $port');
 }
 
 Handler _protectedHandler(
