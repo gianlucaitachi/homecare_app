@@ -1,4 +1,6 @@
-import '../db/postgres_client.dart';
+import 'package:postgres/postgres.dart';
+
+import '../db/database.dart';
 import '../models/user_model.dart';
 
 abstract class UserRepository {
@@ -19,7 +21,9 @@ abstract class UserRepository {
 class PostgresUserRepository implements UserRepository {
   PostgresUserRepository(this._db);
 
-  final PostgresClient _db;
+  final DatabaseManager _db;
+
+  Connection get _conn => _db.conn;
 
   @override
   Future<User?> findUserByEmail(String email) => _findUserBy(
@@ -34,9 +38,12 @@ class PostgresUserRepository implements UserRepository {
       );
 
   Future<User?> _findUserBy({required String column, required Object value}) async {
-    final result = await _db.raw.query(
-      'SELECT id, name, email, password_hash, family_id FROM users WHERE $column = @value LIMIT 1',
-      substitutionValues: {'value': value},
+    final result = await _conn.execute(
+      Sql.named(
+        'SELECT id, name, email, password_hash, family_id '
+        'FROM users WHERE $column = @value LIMIT 1',
+      ),
+      parameters: {'value': value},
     );
 
     if (result.isEmpty) {
@@ -62,20 +69,26 @@ class PostgresUserRepository implements UserRepository {
     required String familyId,
     String? familyName,
   }) async {
-    await _db.raw.transaction((ctx) async {
+    await _conn.runTx((session) async {
       if (familyName != null) {
-        await ctx.query(
-          'INSERT INTO families (id, name) VALUES (@familyId, @familyName) ON CONFLICT (id) DO NOTHING',
-          substitutionValues: {
+        await session.execute(
+          Sql.named(
+            'INSERT INTO families (id, name) VALUES (@familyId, @familyName) '
+            'ON CONFLICT (id) DO NOTHING',
+          ),
+          parameters: {
             'familyId': familyId,
             'familyName': familyName,
           },
         );
       }
 
-      await ctx.query(
-        'INSERT INTO users (id, name, email, password_hash, family_id) VALUES (@id, @name, @email, @hash, @familyId)',
-        substitutionValues: {
+      await session.execute(
+        Sql.named(
+          'INSERT INTO users (id, name, email, password_hash, family_id) '
+          'VALUES (@id, @name, @email, @hash, @familyId)',
+        ),
+        parameters: {
           'id': id,
           'name': name,
           'email': email,

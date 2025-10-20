@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:homecare_backend/db/postgres_client.dart';
+import 'package:homecare_backend/db/database.dart';
 
 Future<void> main(List<String> args) async {
   final migrationsDir = Directory('migrations');
@@ -9,7 +9,7 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
-  final dbClient = PostgresClient.fromEnv();
+  final dbClient = DatabaseManager.instance;
   var exitCodeValue = 0;
 
   try {
@@ -36,7 +36,7 @@ Future<void> main(List<String> args) async {
         if (statement.trim().isEmpty) {
           continue;
         }
-        await dbClient.raw.execute(statement);
+        await dbClient.conn.execute(statement, ignoreRows: true);
       }
     }
 
