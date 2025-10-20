@@ -50,7 +50,11 @@ class _StubTaskRepository implements TaskRepository {
   final Map<String, Task> _tasks;
 
   @override
-  Future<Task?> assignTask(String id, String userId) {
+  Future<Task?> assignTask(
+    String id,
+    String userId, {
+    required String familyId,
+  }) {
     throw UnimplementedError();
   }
 
@@ -66,12 +70,12 @@ class _StubTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<void> deleteTask(String id) {
+  Future<void> deleteTask(String id, {required String familyId}) {
     throw UnimplementedError();
   }
 
   @override
-  Future<Task?> getTask(String id) {
+  Future<Task?> getTask(String id, {required String familyId}) {
     throw UnimplementedError();
   }
 
@@ -83,12 +87,19 @@ class _StubTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<Task?> completeTaskByQrPayload(String payload) {
+  Future<Task?> completeTaskByQrPayload(
+    String payload, {
+    required String familyId,
+  }) {
     throw UnimplementedError();
   }
 
   @override
-  Future<Task?> updateTask(String id, Map<String, dynamic> fields) {
+  Future<Task?> updateTask(
+    String id,
+    Map<String, dynamic> fields, {
+    required String familyId,
+  }) {
     throw UnimplementedError();
   }
 }

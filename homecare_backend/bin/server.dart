@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 
 import 'package:homecare_backend/controllers/auth_controller.dart';
 import 'package:homecare_backend/controllers/chat_controller.dart';
@@ -10,12 +12,14 @@ import 'package:homecare_backend/controllers/task_controller.dart';
 import 'package:homecare_backend/db/postgres_client.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
 import 'package:homecare_backend/middleware/authorization_context_middleware.dart';
+import 'package:homecare_backend/models/auth_context.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/repositories/task_repository.dart';
 import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/socket_service.dart';
 import 'package:homecare_backend/services/task_event_hub.dart';
+import 'package:homecare_backend/utils/request_context.dart';
 
 Future<void> main(List<String> args) async {
   // 1. Khởi tạo kết nối CSDL
@@ -44,6 +48,24 @@ Future<void> main(List<String> args) async {
   // 5. Thiết lập các routes
   final app = Router();
   final apiRouter = Router();
+  apiRouter.get('/health', (Request request) {
+    return Response.ok(jsonEncode({'status': 'ok'}));
+  });
+
+  final meRouter = Router()
+    ..get('/', (Request request) async {
+      final userId = request.authenticatedUserId;
+      if (userId == null) {
+        return Response(401, body: jsonEncode({'error': 'unauthorized'}));
+      }
+
+      final user = await userRepository.findUserById(userId);
+      if (user == null) {
+        return Response.notFound(jsonEncode({'error': 'user_not_found'}));
+      }
+
+      return Response.ok(jsonEncode({'user': user.toJson()}));
+    });
 
   final authRouter = Router()
     ..post('/register', authController.register)
@@ -52,29 +74,66 @@ Future<void> main(List<String> args) async {
     ..post('/logout', authController.logout);
   apiRouter.mount('/auth', authRouter);
 
+  final meRouter = Router()..get('/', authController.me);
+  final protectedMeRouter = Pipeline()
+      .addMiddleware(_requireAuthContextMiddleware())
+      .addHandler(meRouter);
+  apiRouter.mount('/me', protectedMeRouter);
+
   final familiesRouter = Router()
     ..get('/<familyId>/messages', chatController.getMessages)
-    ..post('/<familyId>/messages', chatController.postMessage)
-    ..get('/<familyId>/messages/ws', chatController.connectWebSocket);
-  apiRouter.mount('/families', familiesRouter);
+    ..post('/<familyId>/messages', chatController.postMessage);
+  final protectedFamiliesHandler = _protectedHandler(
+    jwtService,
+    userRepository,
+    familiesRouter,
+  );
 
-  apiRouter.mount('/tasks', taskController.router);
+  final protectedTasksHandler = _protectedHandler(
+    jwtService,
+    userRepository,
+    taskController.router,
+  );
+
+  final protectedMeHandler = _protectedHandler(
+    jwtService,
+    userRepository,
+    meRouter,
+  );
+
+  apiRouter.mount('/health', (Request request) async {
+    return Response.ok(jsonEncode({'status': 'ok'}));
+  });
+
+  apiRouter.mount('/families', protectedFamiliesHandler);
+  apiRouter.mount('/tasks', protectedTasksHandler);
+  apiRouter.mount('/me', protectedMeHandler);
   app.mount('/api', apiRouter);
   app.get('/ws/tasks', taskController.socketHandler);
 
   socketService.initialize();
 
   final handler = Pipeline()
+      .addMiddleware(corsHeaders())
       .addMiddleware(logRequests())
       .addMiddleware(_jsonResponseMiddleware())
-      .addMiddleware(authenticationMiddleware(jwtService))
-      .addMiddleware(authorizationContextMiddleware(userRepository))
       .addHandler(app);
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
   final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
   socketService.attachToHttpServer(server);
   print('Server listening on port $port');
+}
+
+Handler _protectedHandler(
+  JwtService jwtService,
+  UserRepository userRepository,
+  Handler protectedHandler,
+) {
+  return Pipeline()
+      .addMiddleware(authenticationMiddleware(jwtService))
+      .addMiddleware(authorizationContextMiddleware(userRepository))
+      .addHandler(protectedHandler);
 }
 
 // Middleware để mặc định các response là JSON
@@ -87,6 +146,18 @@ Middleware _jsonResponseMiddleware() {
         return response.change(headers: {'content-type': 'application/json'});
       }
       return response;
+    };
+  };
+}
+
+Middleware _requireAuthContextMiddleware() {
+  return (innerHandler) {
+    return (request) async {
+      final auth = request.context['auth'];
+      if (auth is! AuthContext) {
+        return Response(401, body: jsonEncode({'error': 'unauthorized'}));
+      }
+      return innerHandler(request);
     };
   };
 }

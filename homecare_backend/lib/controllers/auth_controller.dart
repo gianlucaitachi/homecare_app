@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/auth_context.dart';
 import '../repositories/user_repository.dart';
 import '../services/jwt_service.dart';
 import '../services/password_service.dart';
@@ -143,6 +144,20 @@ class AuthController {
     }
     // In a real app, you would add logic here to invalidate the refresh token.
     return Response.ok(jsonEncode({'message': 'logged out successfully'}));
+  }
+
+  Future<Response> me(Request req) async {
+    final auth = req.context['auth'];
+    if (auth is! AuthContext) {
+      return _unauthorizedResponse();
+    }
+
+    final user = await _userRepository.findUserById(auth.userId);
+    if (user == null) {
+      return Response.notFound(jsonEncode({'error': 'user_not_found'}));
+    }
+
+    return Response.ok(jsonEncode({'user': user.toJson()}));
   }
 
   Response _unauthorizedResponse() {

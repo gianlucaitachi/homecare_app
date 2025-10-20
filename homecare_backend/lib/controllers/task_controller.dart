@@ -30,11 +30,15 @@ class TaskController {
   }
 
   Handler get socketHandler => (Request request) {
-        final familyId = request.url.queryParameters['familyId'];
+        final auth = request.context['auth'] as AuthContext?;
+        if (auth == null) {
+          return _unauthorizedResponse();
+        }
+
         final handler = webSocketHandler((socket) {
           _eventHub.addClient(
             WebSocketTaskEventClient(socket),
-            familyId: familyId,
+            familyId: auth.familyId,
           );
         });
         return handler(request);
@@ -67,17 +71,16 @@ class TaskController {
   }
 
   Future<Response> createTask(Request request) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
     final payload = await _decodeJsonBody(request);
-    final familyId = payload['familyId'] as String?;
     final title = payload['title'] as String?;
 
-    if (familyId == null || title == null) {
-      return Response(400,
-          body: jsonEncode({'error': 'familyId and title are required'}));
+    if (title == null) {
+      return Response(400, body: jsonEncode({'error': 'title is required'}));
     }
 
     final description = payload['description'] as String?;
@@ -86,7 +89,7 @@ class TaskController {
     final dueDate = _parseDateTime(dueDateStr);
 
     final task = await _repository.createTask(
-      familyId: familyId,
+      familyId: auth.familyId,
       title: title,
       description: description,
       dueDate: dueDate,
@@ -103,11 +106,12 @@ class TaskController {
   }
 
   Future<Response> getTaskById(Request request, String id) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
-    final task = await _repository.getTask(id);
+    final task = await _repository.getTask(id, familyId: auth.familyId);
     if (task == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
     }
@@ -115,11 +119,12 @@ class TaskController {
   }
 
   Future<Response> updateTask(Request request, String id) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
-    final existing = await _repository.getTask(id);
+    final existing = await _repository.getTask(id, familyId: auth.familyId);
     if (existing == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
     }
@@ -159,7 +164,11 @@ class TaskController {
       }
     }
 
-    final updated = await _repository.updateTask(id, fields);
+    final updated = await _repository.updateTask(
+      id,
+      fields,
+      familyId: auth.familyId,
+    );
     if (updated == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
     }
@@ -174,16 +183,17 @@ class TaskController {
   }
 
   Future<Response> deleteTask(Request request, String id) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
-    final existing = await _repository.getTask(id);
+    final existing = await _repository.getTask(id, familyId: auth.familyId);
     if (existing == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
     }
 
-    await _repository.deleteTask(id);
+    await _repository.deleteTask(id, familyId: auth.familyId);
     _eventHub.broadcast({
       'type': 'task.deleted',
       'taskId': id,
@@ -193,7 +203,8 @@ class TaskController {
   }
 
   Future<Response> assignTask(Request request, String id) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
@@ -203,7 +214,11 @@ class TaskController {
       return Response(400, body: jsonEncode({'error': 'userId is required'}));
     }
 
-    final task = await _repository.assignTask(id, userId);
+    final task = await _repository.assignTask(
+      id,
+      userId,
+      familyId: auth.familyId,
+    );
     if (task == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
     }
@@ -218,21 +233,17 @@ class TaskController {
   }
 
   Future<Response> broadcastUpdate(Request request, String id) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
     final payload = await _decodeJsonBody(request);
-    final familyId = payload['familyId'] as String?;
-    if (familyId == null || familyId.isEmpty) {
-      return Response(400,
-          body: jsonEncode({'error': 'familyId is required'}));
-    }
 
     final event = <String, dynamic>{
       'type': 'task.updated',
       'taskId': id,
-      'familyId': familyId,
+      'familyId': auth.familyId,
       if (payload['task'] != null) 'task': payload['task'],
       if (payload['changes'] != null) 'changes': payload['changes'],
     };
@@ -243,7 +254,8 @@ class TaskController {
   }
 
   Future<Response> completeByQrPayload(Request request) async {
-    if (request.authenticatedUserId == null) {
+    final auth = request.context['auth'] as AuthContext?;
+    if (auth == null) {
       return _unauthorizedResponse();
     }
 
@@ -253,7 +265,10 @@ class TaskController {
       return Response(400, body: jsonEncode({'error': 'payload is required'}));
     }
 
-    final task = await _repository.completeTaskByQrPayload(qrPayload);
+    final task = await _repository.completeTaskByQrPayload(
+      qrPayload,
+      familyId: auth.familyId,
+    );
     if (task == null) {
       return Response.notFound(jsonEncode({'error': 'task_not_found'}));
     }

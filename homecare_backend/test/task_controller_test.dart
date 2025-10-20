@@ -18,9 +18,13 @@ class InMemoryTaskRepository implements TaskRepository {
   final _uuid = const Uuid();
 
   @override
-  Future<Task?> assignTask(String id, String userId) async {
+  Future<Task?> assignTask(
+    String id,
+    String userId, {
+    required String familyId,
+  }) async {
     final task = _tasks[id];
-    if (task == null) return null;
+    if (task == null || task.familyId != familyId) return null;
     final updated = task.copyWith(
       assignedUserId: userId,
       status: TaskStatus.inProgress,
@@ -60,12 +64,20 @@ class InMemoryTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<void> deleteTask(String id) async {
+  Future<void> deleteTask(String id, {required String familyId}) async {
+    final task = _tasks[id];
+    if (task == null || task.familyId != familyId) {
+      return;
+    }
     _tasks.remove(id);
   }
 
   @override
-  Future<Task?> getTask(String id) async => _tasks[id];
+  Future<Task?> getTask(String id, {required String familyId}) async {
+    final task = _tasks[id];
+    if (task == null || task.familyId != familyId) return null;
+    return task;
+  }
 
   @override
   Future<List<Task>> listTasks({required String familyId}) async {
@@ -75,10 +87,13 @@ class InMemoryTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<Task?> completeTaskByQrPayload(String payload) async {
+  Future<Task?> completeTaskByQrPayload(
+    String payload, {
+    required String familyId,
+  }) async {
     Task? task;
     for (final entry in _tasks.values) {
-      if (entry.qrPayload == payload) {
+      if (entry.qrPayload == payload && entry.familyId == familyId) {
         task = entry;
         break;
       }
@@ -94,9 +109,13 @@ class InMemoryTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<Task?> updateTask(String id, Map<String, dynamic> fields) async {
+  Future<Task?> updateTask(
+    String id,
+    Map<String, dynamic> fields, {
+    required String familyId,
+  }) async {
     final task = _tasks[id];
-    if (task == null) return null;
+    if (task == null || task.familyId != familyId) return null;
     var updated = task;
     fields.forEach((key, value) {
       switch (key) {
@@ -250,7 +269,6 @@ void main() {
           'POST',
           '/',
           body: jsonEncode({
-            'familyId': 'family-1',
             'title': 'Morning medication',
           }),
           headers: {'content-type': 'application/json'},
@@ -280,7 +298,6 @@ void main() {
           'POST',
           '/',
           body: jsonEncode({
-            'familyId': 'family-2',
             'title': 'Prepare breakfast',
           }),
           headers: {'content-type': 'application/json'},
@@ -377,12 +394,19 @@ void main() {
     });
 
     test('updates, assigns and completes task', () async {
+      userRepository.users['user-1'] = User(
+        id: 'user-1',
+        name: 'Family Three User',
+        email: 'user1@example.com',
+        passwordHash: 'hash',
+        familyId: 'family-3',
+      );
+
       final createResponse = await _call(
         _authedRequest(
           'POST',
           '/',
           body: jsonEncode({
-            'familyId': 'family-3',
             'title': 'Check vitals',
           }),
           headers: {'content-type': 'application/json'},
@@ -448,6 +472,69 @@ void main() {
             .isEmpty,
         isTrue,
       );
+    });
+
+    test('rejects cross-family task mutations', () async {
+      final createResponse = await _call(
+        _authedRequest(
+          'POST',
+          '/',
+          body: jsonEncode({
+            'title': 'Family one task',
+          }),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      expect(createResponse.statusCode, equals(201));
+      final created =
+          jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
+      final task = created['task'] as Map<String, dynamic>;
+      final taskId = task['id'] as String;
+      final qrPayload = task['qrPayload'] as String;
+
+      userRepository.users['user-1'] = User(
+        id: 'user-1',
+        name: 'Other Family User',
+        email: 'user1@example.com',
+        passwordHash: 'hash',
+        familyId: 'family-else',
+      );
+
+      final updateResponse = await _call(
+        _authedRequest(
+          'PUT',
+          '/$taskId',
+          body: jsonEncode({'description': 'Updated'}),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      expect(updateResponse.statusCode, equals(404));
+
+      final assignResponse = await _call(
+        _authedRequest(
+          'POST',
+          '/$taskId/assign',
+          body: jsonEncode({'userId': 'caregiver-99'}),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      expect(assignResponse.statusCode, equals(404));
+
+      final deleteResponse = await _call(
+        _authedRequest('DELETE', '/$taskId'),
+      );
+      expect(deleteResponse.statusCode, equals(404));
+
+      final completeResponse = await _call(
+        _authedRequest(
+          'POST',
+          '/complete-qr',
+          body: jsonEncode({'payload': qrPayload}),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      expect(completeResponse.statusCode, equals(404));
     });
   });
 }
