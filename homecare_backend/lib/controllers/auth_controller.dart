@@ -77,13 +77,13 @@ class AuthController {
 
     final user = await _userRepository.findUserByEmail(email);
     if (user == null) {
-      return Response.forbidden(jsonEncode({'error': 'invalid_credentials'}));
+      return Response(401, body: jsonEncode({'error': 'invalid_credentials'}));
     }
 
     final isValidPassword =
         _passwordService.verifyPassword(password, user.passwordHash);
     if (!isValidPassword) {
-      return Response.forbidden(jsonEncode({'error': 'invalid_credentials'}));
+      return Response(401, body: jsonEncode({'error': 'invalid_credentials'}));
     }
 
     final accessToken = _jwtService.signAccessToken({'sub': user.id});
