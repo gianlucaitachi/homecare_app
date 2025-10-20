@@ -53,8 +53,8 @@ void main() {
     build: () {
       when(() => repository.fetchTasks(familyId: any(named: 'familyId')))
           .thenAnswer((_) async => [task]);
-        when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
-            .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
+      when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
+          .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
       return TaskListBloc(repository: repository, taskBloc: taskBloc);
     },
     act: (bloc) => bloc.add(const TaskListStarted()),
@@ -79,8 +79,8 @@ void main() {
     build: () {
       when(() => repository.fetchTasks(familyId: any(named: 'familyId')))
           .thenAnswer((_) async => []);
-        when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
-            .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
+      when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
+          .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
       return TaskListBloc(repository: repository, taskBloc: taskBloc);
     },
     act: (bloc) async {
@@ -100,6 +100,46 @@ void main() {
           any(that: isA<task_bloc_event.TaskCreated>()),
         ),
       ).called(1);
+    },
+  );
+
+  blocTest<TaskListBloc, TaskListState>(
+    'ignores events for different families when familyId is set',
+    build: () {
+      when(() => repository.fetchTasks(familyId: any(named: 'familyId')))
+          .thenAnswer((_) async => []);
+      when(() => repository.subscribeToTaskEvents(familyId: any(named: 'familyId')))
+          .thenAnswer((_) => const Stream<domain_event.TaskEvent>.empty());
+      return TaskListBloc(
+        repository: repository,
+        taskBloc: taskBloc,
+        familyId: 'family-1',
+      );
+    },
+    act: (bloc) async {
+      bloc.add(const TaskListStarted());
+      await Future<void>.delayed(Duration.zero);
+      final otherFamilyTask = task.copyWith(familyId: 'family-2');
+      bloc.add(
+        TaskListTaskEventReceived(
+          domain_event.TaskEvent(
+            type: domain_event.TaskEventType.created,
+            task: otherFamilyTask,
+            familyId: 'family-2',
+          ),
+        ),
+      );
+    },
+    expect: () => const [
+      TaskListState(status: TaskListStatus.loading),
+      TaskListState(status: TaskListStatus.success, tasks: []),
+    ],
+    verify: (_) {
+      verifyNever(
+        () => taskBloc.add(
+          any(that: isA<task_bloc_event.TaskCreated>()),
+        ),
+      );
     },
   );
 }

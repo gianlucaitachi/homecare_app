@@ -167,6 +167,7 @@ void main() {
       expect(task['qrPayload'], startsWith('payload-'));
       expect(task['qrImageBase64'], startsWith('data:image/png;base64,'));
       expect(eventHub.events.last['type'], equals('task.created'));
+      expect(eventHub.events.last['familyId'], equals('family-1'));
     });
 
     test('lists tasks after creation', () async {
@@ -257,6 +258,18 @@ void main() {
       expect(completeBody['task']['status'], equals('completed'));
       expect(eventHub.events.map((e) => e['type']).toSet(),
           containsAll(['task.updated', 'task.assigned', 'task.completed']));
+      expect(
+        eventHub.events
+            .where((event) => event['type'] == 'task.deleted')
+            .isEmpty,
+        isTrue,
+      );
+      expect(
+        eventHub.events
+            .where((event) => event['familyId'] != 'family-3')
+            .isEmpty,
+        isTrue,
+      );
     });
   });
 }
