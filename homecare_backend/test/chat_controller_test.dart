@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:homecare_backend/controllers/chat_controller.dart';
 import 'package:homecare_backend/middleware/authentication_middleware.dart';
+import 'package:homecare_backend/models/auth_context.dart';
 import 'package:homecare_backend/models/message_model.dart';
 import 'package:homecare_backend/repositories/message_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
@@ -31,7 +32,8 @@ void main() {
       controller = ChatController(repository, socketService);
       router = Router()
         ..get('/api/families/<familyId>/messages', controller.getMessages)
-        ..post('/api/families/<familyId>/messages', controller.postMessage);
+        ..post('/api/families/<familyId>/messages', controller.postMessage)
+        ..get('/api/families/<familyId>/messages/ws', controller.connectWebSocket);
       jwtService = JwtService(
         accessSecret: 'test-access',
         refreshSecret: 'test-refresh',
@@ -144,6 +146,35 @@ void main() {
             senderId: 'user-42',
             content: 'Hello',
           )).called(1);
+    });
+
+    test('connectWebSocket returns 401 when auth context is missing', () async {
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost/api/families/family-1/messages/ws'),
+      );
+
+      final response = await controller.connectWebSocket(request, 'family-1');
+
+      expect(response.statusCode, equals(401));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('unauthorized'));
+    });
+
+    test('connectWebSocket returns 403 when family does not match context', () async {
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost/api/families/family-2/messages/ws'),
+        context: {
+          'auth': const AuthContext(userId: 'user-42', familyId: 'family-1'),
+        },
+      );
+
+      final response = await controller.connectWebSocket(request, 'family-2');
+
+      expect(response.statusCode, equals(403));
+      final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error'], equals('family_id_mismatch'));
     });
   });
 }

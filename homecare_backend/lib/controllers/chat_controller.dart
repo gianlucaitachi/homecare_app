@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
+import 'package:shelf_web_socket/shelf_web_socket.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../models/auth_context.dart';
 import '../repositories/message_repository.dart';
 import '../services/socket_service.dart';
 import '../utils/request_context.dart';
@@ -48,6 +51,29 @@ class ChatController {
     _socketService.broadcastChatMessage(message);
 
     return Response(201, body: jsonEncode({'message': message.toJson()}));
+  }
+
+  Future<Response> connectWebSocket(Request request, String familyId) async {
+    final authContext = request.context['auth'] as AuthContext?;
+    if (authContext == null) {
+      return _unauthorizedResponse();
+    }
+
+    if (authContext.familyId != familyId) {
+      return Response.forbidden(
+        jsonEncode({'error': 'family_id_mismatch'}),
+      );
+    }
+
+    final handler = webSocketHandler((WebSocketChannel channel) {
+      _socketService.registerWebSocketClient(
+        familyId: familyId,
+        userId: authContext.userId,
+        channel: channel,
+      );
+    });
+
+    return handler(request);
   }
 
   Response _unauthorizedResponse() {

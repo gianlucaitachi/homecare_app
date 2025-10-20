@@ -54,7 +54,8 @@ Future<void> main(List<String> args) async {
 
   final familiesRouter = Router()
     ..get('/<familyId>/messages', chatController.getMessages)
-    ..post('/<familyId>/messages', chatController.postMessage);
+    ..post('/<familyId>/messages', chatController.postMessage)
+    ..get('/<familyId>/messages/ws', chatController.connectWebSocket);
   apiRouter.mount('/families', familiesRouter);
 
   apiRouter.mount('/tasks', taskController.router);
