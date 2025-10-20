@@ -25,7 +25,15 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
-          cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-dart-pub-${{ hashFiles('homecare_backend/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-dart-pub-
 
       - name: Install dependencies
         run: dart pub get
@@ -60,9 +68,9 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('homecare_app/pubspec.lock') }}
+          key: ${{ runner.os }}-flutter-pub-${{ hashFiles('homecare_app/pubspec.lock') }}
           restore-keys: |
-            ${{ runner.os }}-pub-
+            ${{ runner.os }}-flutter-pub-
 
       - name: Cache Gradle
         uses: actions/cache@v3
