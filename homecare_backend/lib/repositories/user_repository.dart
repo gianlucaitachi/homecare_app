@@ -4,6 +4,8 @@ import '../models/user_model.dart';
 abstract class UserRepository {
   Future<User?> findUserByEmail(String email);
 
+  Future<User?> findUserById(String id);
+
   Future<User> createUser({
     required String id,
     required String name,
@@ -24,6 +26,27 @@ class PostgresUserRepository implements UserRepository {
     final result = await _db.raw.query(
       'SELECT id, name, email, password_hash, family_id FROM users WHERE email = @email LIMIT 1',
       substitutionValues: {'email': email},
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    final row = result.first.toColumnMap();
+    return User(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      email: row['email'] as String,
+      passwordHash: row['password_hash'] as String,
+      familyId: row['family_id'] as String,
+    );
+  }
+
+  @override
+  Future<User?> findUserById(String id) async {
+    final result = await _db.raw.query(
+      'SELECT id, name, email, password_hash, family_id FROM users WHERE id = @id LIMIT 1',
+      substitutionValues: {'id': id},
     );
 
     if (result.isEmpty) {
