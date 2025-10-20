@@ -1,9 +1,7 @@
 
 import 'package:dio/dio.dart';
 
-// Địa chỉ cơ sở của backend. 
-// Khi chạy trên máy thật, bạn cần đổi 'localhost' thành địa chỉ IP của máy tính.
-const String baseUrl = 'http://10.0.2.2:8080'; // 10.0.2.2 là localhost cho Android emulator
+import '../../../../core/constants/app_constants.dart';
 
 abstract class AuthRemoteDataSource {
   Future<Response> login({required String email, required String password});
@@ -24,7 +22,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<Response> login({required String email, required String password}) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/auth/login',
+        '${AppConstants.apiBaseUrl}/auth/login',
         data: {
           'email': email,
           'password': password,
@@ -42,7 +40,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       {required String name, required String email, required String password}) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/auth/register',
+        '${AppConstants.apiBaseUrl}/auth/register',
         data: {
           'name': name,
           'email': email,
