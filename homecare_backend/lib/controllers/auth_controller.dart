@@ -47,11 +47,17 @@ class AuthController {
       passwordHash: passwordHash,
     );
 
+    final accessToken = _jwtService.signAccessToken({'sub': user.id});
+    final refreshToken =
+        _jwtService.signRefreshToken({'sub': user.id, 'type': 'refresh'});
+
     return Response.ok(
       jsonEncode(
         {
           'message': 'registration successful',
           'user': user.toJson(),
+          'accessToken': accessToken,
+          'refreshToken': refreshToken,
         },
       ),
     );

@@ -77,6 +77,8 @@ void main() {
           jsonDecode(await registerResponse.readAsString()) as Map<String, dynamic>;
       expect(registerBody['message'], equals('registration successful'));
       expect(registerBody['user']['email'], equals('alice@example.com'));
+      expect(registerBody['accessToken'], isNotEmpty);
+      expect(registerBody['refreshToken'], isNotEmpty);
 
       final storedUser = await userRepository.findUserByEmail('alice@example.com');
       expect(storedUser, isNotNull);
