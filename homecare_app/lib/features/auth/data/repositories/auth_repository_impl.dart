@@ -69,4 +69,15 @@ class AuthRepositoryImpl implements AuthRepository {
     // Xóa tất cả token khi đăng xuất
     await _secureStorage.deleteAll();
   }
+
+  @override
+  Future<bool> hasValidSession() async {
+    final accessToken = await _secureStorage.read(key: 'accessToken');
+    final refreshToken = await _secureStorage.read(key: 'refreshToken');
+
+    final hasAccessToken = accessToken != null && accessToken.isNotEmpty;
+    final hasRefreshToken = refreshToken != null && refreshToken.isNotEmpty;
+
+    return hasAccessToken && hasRefreshToken;
+  }
 }

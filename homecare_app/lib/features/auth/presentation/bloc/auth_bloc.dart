@@ -16,6 +16,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginRequested>(_onLoginRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
+    on<AuthCheckRequested>(_onAuthCheckRequested);
   }
 
   // Xử lý sự kiện đăng nhập
@@ -65,6 +66,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await _authRepository.logout();
       emit(Unauthenticated());
+    } catch (e) {
+      emit(AuthFailure(e.toString()));
+    }
+  }
+
+  Future<void> _onAuthCheckRequested(
+    AuthCheckRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final hasSession = await _authRepository.hasValidSession();
+      if (hasSession) {
+        emit(Authenticated());
+      } else {
+        emit(Unauthenticated());
+      }
     } catch (e) {
       emit(AuthFailure(e.toString()));
     }
