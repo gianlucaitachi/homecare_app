@@ -98,20 +98,21 @@ class AuthController {
   }
 
   Future<Response> refresh(Request req) async {
-    final userId = req.authenticatedUserId;
-    if (userId == null) {
-      return _unauthorizedResponse();
-    }
-
     final body = jsonDecode(await req.readAsString());
     final refreshToken = body['refreshToken'] as String?;
     if (refreshToken == null) return Response(400, body: jsonEncode({'error': 'refreshToken is required'}));
+
+    final authenticatedUserId = req.authenticatedUserId;
 
     try {
       final jwt = _jwtService.verifyRefreshToken(refreshToken);
       final sub = jwt.payload['sub'] as String?;
 
-      if (sub == null || jwt.payload['type'] != 'refresh' || sub != userId) {
+      if (sub == null || jwt.payload['type'] != 'refresh') {
+        return Response(401, body: jsonEncode({'error': 'invalid_token'}));
+      }
+
+      if (authenticatedUserId != null && sub != authenticatedUserId) {
         return Response(401, body: jsonEncode({'error': 'invalid_token'}));
       }
 
