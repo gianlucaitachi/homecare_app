@@ -52,7 +52,8 @@ dev_dependencies:
   build_runner: ^2.4.11
   hive_generator: ^2.0.1
   pretty_dio_logger: ^1.3.1 # For logging network calls
-  mocktail: ^1.0.3
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.4
 
 flutter:
   uses-material-design: true
