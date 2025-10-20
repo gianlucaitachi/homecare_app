@@ -27,6 +27,7 @@ dependencies:
   # Firebase & Notifications
   firebase_messaging: ^16.0.3
   flutter_local_notifications: ^17.2.1
+  timezone: ^0.9.2
 
   # UI & UX
   cupertino_icons: ^1.0.5
@@ -45,6 +46,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  bloc_test: ^9.1.5
+  mocktail: ^1.0.3
 
   # Code generation & debugging
   build_runner: ^2.4.11

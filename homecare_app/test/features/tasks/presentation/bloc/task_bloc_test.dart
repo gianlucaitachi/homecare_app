@@ -1,0 +1,160 @@
+import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:homecare_app/core/notifications/notification_service.dart';
+import 'package:homecare_app/features/tasks/domain/entities/task.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart';
+import 'package:homecare_app/features/tasks/presentation/bloc/task_state.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockNotificationService extends Mock implements NotificationService {}
+
+void main() {
+  late _MockNotificationService notificationService;
+  late Task taskWithDueDate;
+
+  setUp(() {
+    notificationService = _MockNotificationService();
+    taskWithDueDate = Task(
+      id: '1',
+      title: 'Test Task',
+      description: 'Remember to finish testing.',
+      dueDate: DateTime.now().add(const Duration(hours: 6)),
+    );
+
+    when(() => notificationService.scheduleTaskReminder(
+          taskId: any(named: 'taskId'),
+          title: any(named: 'title'),
+          body: any(named: 'body'),
+          dueDate: any(named: 'dueDate'),
+        )).thenAnswer((_) async {});
+    when(() => notificationService.updateTaskReminder(
+          taskId: any(named: 'taskId'),
+          title: any(named: 'title'),
+          body: any(named: 'body'),
+          dueDate: any(named: 'dueDate'),
+        )).thenAnswer((_) async {});
+    when(() => notificationService.cancelTaskReminder(any()))
+        .thenAnswer((_) async {});
+  });
+
+  blocTest<TaskBloc, TaskState>(
+    'schedules reminder when a task with due date is created',
+    build: () => TaskBloc(notificationService: notificationService),
+    act: (bloc) => bloc.add(TaskCreated(taskWithDueDate)),
+    expect: () => [
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate,
+        operation: TaskOperation.create,
+      ),
+    ],
+    verify: (_) {
+      verify(() => notificationService.scheduleTaskReminder(
+            taskId: taskWithDueDate.id,
+            title: taskWithDueDate.title,
+            body: taskWithDueDate.description!,
+            dueDate: any(named: 'dueDate'),
+          )).called(1);
+    },
+  );
+
+  blocTest<TaskBloc, TaskState>(
+    'updates reminder when task due date changes',
+    build: () => TaskBloc(notificationService: notificationService),
+    act: (bloc) {
+      final updated = taskWithDueDate.copyWith(
+        dueDate: taskWithDueDate.dueDate!.add(const Duration(hours: 2)),
+      );
+      bloc
+        ..add(TaskCreated(taskWithDueDate))
+        ..add(TaskUpdated(previousTask: taskWithDueDate, updatedTask: updated));
+    },
+    expect: () => [
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate,
+        operation: TaskOperation.create,
+      ),
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate.copyWith(
+          dueDate: taskWithDueDate.dueDate!.add(const Duration(hours: 2)),
+        ),
+        operation: TaskOperation.update,
+      ),
+    ],
+    verify: (_) {
+      verify(() => notificationService.updateTaskReminder(
+            taskId: taskWithDueDate.id,
+            title: taskWithDueDate.title,
+            body: taskWithDueDate.description!,
+            dueDate: any(named: 'dueDate'),
+          )).called(1);
+    },
+  );
+
+  blocTest<TaskBloc, TaskState>(
+    'cancels reminder when due date is removed',
+    build: () => TaskBloc(notificationService: notificationService),
+    act: (bloc) {
+      bloc
+        ..add(TaskCreated(taskWithDueDate))
+        ..add(
+          TaskUpdated(
+            previousTask: taskWithDueDate,
+            updatedTask: taskWithDueDate.copyWith(dueDate: null),
+          ),
+        );
+    },
+    expect: () => [
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate,
+        operation: TaskOperation.create,
+      ),
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate.copyWith(dueDate: null),
+        operation: TaskOperation.update,
+      ),
+    ],
+    verify: (_) {
+      verify(() => notificationService.cancelTaskReminder(taskWithDueDate.id))
+          .called(1);
+    },
+  );
+
+  blocTest<TaskBloc, TaskState>(
+    'cancels reminder when task is deleted',
+    build: () => TaskBloc(notificationService: notificationService),
+    act: (bloc) {
+      bloc
+        ..add(TaskCreated(taskWithDueDate))
+        ..add(TaskDeleted(taskWithDueDate));
+    },
+    expect: () => [
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate,
+        operation: TaskOperation.create,
+      ),
+      const TaskState(status: TaskStatus.loading),
+      TaskState(
+        status: TaskStatus.success,
+        task: taskWithDueDate,
+        operation: TaskOperation.delete,
+      ),
+    ],
+    verify: (_) {
+      verify(() => notificationService.cancelTaskReminder(taskWithDueDate.id))
+          .called(greaterThanOrEqualTo(1));
+    },
+  );
+}
