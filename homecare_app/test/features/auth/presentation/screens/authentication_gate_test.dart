@@ -4,53 +4,68 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homecare_app/features/app_shell/presentation/authenticated_shell.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:homecare_app/features/auth/presentation/screens/authentication_gate.dart';
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
+import 'package:mocktail/mocktail.dart';
 
 import '../../../../helpers/mock_auth_bloc.dart';
 
 void main() {
-  setUpAll(registerAuthFallbackValues);
+  late MockAuthBloc mockAuthBloc;
 
-  testWidgets('AuthenticationGate shows LoginScreen for Unauthenticated state',
-      (tester) async {
-    final mockBloc = MockAuthBloc();
-    final state = Unauthenticated();
-
-    when(() => mockBloc.state).thenReturn(state);
-    whenListen(mockBloc, Stream<AuthState>.value(state), initialState: state);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider<AuthBloc>.value(
-          value: mockBloc,
-          child: const AuthenticationGate(),
-        ),
-      ),
-    );
-
-    expect(find.byType(LoginScreen), findsOneWidget);
-    addTearDown(mockBloc.close);
+  setUpAll(() {
+    registerAuthFallbackValues();
   });
 
-  testWidgets('AuthenticationGate shows AuthenticatedShell for Authenticated state',
-      (tester) async {
-    final mockBloc = MockAuthBloc();
-    final state = Authenticated();
+  setUp(() {
+    mockAuthBloc = MockAuthBloc();
+  });
 
-    when(() => mockBloc.state).thenReturn(state);
-    whenListen(mockBloc, Stream<AuthState>.value(state), initialState: state);
+  tearDown(() {
+    mockAuthBloc.close();
+  });
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider<AuthBloc>.value(
-          value: mockBloc,
-          child: const AuthenticationGate(),
-        ),
+  Widget buildGate() {
+    return MaterialApp(
+      home: BlocProvider<AuthBloc>.value(
+        value: mockAuthBloc,
+        child: const AuthenticationGate(),
       ),
     );
+  }
+
+  testWidgets('renders AuthenticatedShell when state is Authenticated',
+      (tester) async {
+    const state = Authenticated();
+    when(() => mockAuthBloc.state).thenReturn(state);
+    whenListen(mockAuthBloc, Stream<AuthState>.value(state), initialState: state);
+
+    await tester.pumpWidget(buildGate());
+    await tester.pump();
 
     expect(find.byType(AuthenticatedShell), findsOneWidget);
-    addTearDown(mockBloc.close);
+  });
+
+  testWidgets('renders LoginScreen when state is Unauthenticated', (tester) async {
+    const state = Unauthenticated();
+    when(() => mockAuthBloc.state).thenReturn(state);
+    whenListen(mockAuthBloc, Stream<AuthState>.value(state), initialState: state);
+
+    await tester.pumpWidget(buildGate());
+    await tester.pump();
+
+    expect(find.byType(LoginScreen), findsOneWidget);
+  });
+
+  testWidgets('shows loading indicator for other states', (tester) async {
+    final state = AuthLoading();
+    when(() => mockAuthBloc.state).thenReturn(state);
+    whenListen(mockAuthBloc, Stream<AuthState>.value(state), initialState: state);
+
+    await tester.pumpWidget(buildGate());
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }
