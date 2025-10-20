@@ -20,14 +20,14 @@ abstract class TaskRemoteDataSource {
 }
 
 class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
-  TaskRemoteDataSourceImpl({required Dio dio, required String baseUrl})
+  TaskRemoteDataSourceImpl({required Dio dio, required String apiBaseUrl})
       : _dio = dio,
-        _baseUrl = baseUrl;
+        _apiBaseUrl = apiBaseUrl;
 
   final Dio _dio;
-  final String _baseUrl;
+  final String _apiBaseUrl;
 
-  String get _tasksBase => '$_baseUrl/api/tasks';
+  String get _tasksBase => '$_apiBaseUrl/tasks';
 
   @override
   Future<TaskModel> assignTask(String id, String userId) async {

@@ -23,6 +23,7 @@ class TaskController {
     router.put('/<id>', updateTask);
     router.delete('/<id>', deleteTask);
     router.post('/<id>/assign', assignTask);
+    router.post('/<id>/events/updated', broadcastUpdate);
     return router;
   }
 
@@ -165,6 +166,27 @@ class TaskController {
     return Response.ok(jsonEncode({'task': task.toJson()}));
   }
 
+  Future<Response> broadcastUpdate(Request request, String id) async {
+    final payload = await _decodeJsonBody(request);
+    final familyId = payload['familyId'] as String?;
+    if (familyId == null || familyId.isEmpty) {
+      return Response(400,
+          body: jsonEncode({'error': 'familyId is required'}));
+    }
+
+    final event = <String, dynamic>{
+      'type': 'task.updated',
+      'taskId': id,
+      'familyId': familyId,
+      if (payload['task'] != null) 'task': payload['task'],
+      if (payload['changes'] != null) 'changes': payload['changes'],
+    };
+
+    _eventHub.broadcast(event);
+
+    return Response.ok(jsonEncode({'status': 'broadcasted'}));
+  }
+
   Future<Response> completeByQrPayload(Request request) async {
     final payload = await _decodeJsonBody(request);
     final qrPayload = payload['payload'] as String?;
@@ -199,32 +221,5 @@ class TaskController {
     if (raw == null || raw.isEmpty) return null;
     return DateTime.tryParse(raw);
 
-import '../services/socket_service.dart';
-
-class TaskController {
-  TaskController(this._socketService);
-
-  final SocketService _socketService;
-
-  Future<Response> broadcastUpdate(Request request, String taskId) async {
-    final body = jsonDecode(await request.readAsString()) as Map<String, dynamic>?;
-    if (body == null) {
-      return Response(400, body: jsonEncode({'error': 'invalid_body'}));
-    }
-
-    final familyId = body['familyId'] as String?;
-    if (familyId == null || familyId.isEmpty) {
-      return Response(400, body: jsonEncode({'error': 'familyId is required'}));
-    }
-
-    final payload = <String, dynamic>{
-      'taskId': taskId,
-      if (body['task'] != null) 'task': body['task'],
-      if (body['changes'] != null) 'changes': body['changes'],
-    };
-
-    _socketService.broadcastTaskUpdated(familyId, payload);
-
-    return Response.ok(jsonEncode({'status': 'broadcasted'}));
   }
 }
