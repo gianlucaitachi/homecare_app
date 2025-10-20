@@ -1,5 +1,14 @@
 # homecare_app
 
+## Setup
+
+Before running the backend server or executing the migration tool, copy the example
+environment file and adjust the values as needed:
+
+```
+cp homecare_backend/.env.example homecare_backend/.env
+```
+
 ## Authentication API Overview
 
 ### `POST /auth/register`
