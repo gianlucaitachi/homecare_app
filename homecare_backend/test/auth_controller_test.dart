@@ -7,6 +7,7 @@ import 'package:homecare_backend/repositories/user_repository.dart';
 import 'package:homecare_backend/services/jwt_service.dart';
 import 'package:homecare_backend/services/password_service.dart';
 import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -48,6 +49,7 @@ void main() {
     late InMemoryUserRepository userRepository;
     late PasswordService passwordService;
     late AuthController controller;
+    late Router router;
 
     setUp(() {
       userRepository = InMemoryUserRepository();
@@ -63,12 +65,15 @@ void main() {
         passwordService: passwordService,
         uuid: const Uuid(),
       );
+      router = Router()
+        ..post('/api/auth/register', controller.register)
+        ..post('/api/auth/login', controller.login);
     });
 
     test('register and login flow with bcrypt hashing', () async {
       final registerRequest = Request(
         'POST',
-        Uri.parse('http://localhost/auth/register'),
+        Uri.parse('http://localhost/api/auth/register'),
         body: jsonEncode({
           'email': 'alice@example.com',
           'password': 'SuperSecret123!',
@@ -77,7 +82,7 @@ void main() {
         headers: {'content-type': 'application/json'},
       );
 
-      final registerResponse = await controller.register(registerRequest);
+      final registerResponse = await router.call(registerRequest);
       expect(registerResponse.statusCode, equals(200));
 
       final registerBody =
@@ -99,7 +104,7 @@ void main() {
 
       final loginRequest = Request(
         'POST',
-        Uri.parse('http://localhost/auth/login'),
+        Uri.parse('http://localhost/api/auth/login'),
         body: jsonEncode({
           'email': 'alice@example.com',
           'password': 'SuperSecret123!',
@@ -107,7 +112,7 @@ void main() {
         headers: {'content-type': 'application/json'},
       );
 
-      final loginResponse = await controller.login(loginRequest);
+      final loginResponse = await router.call(loginRequest);
       expect(loginResponse.statusCode, equals(200));
 
       final loginBody =
@@ -132,7 +137,7 @@ void main() {
 
       final loginRequest = Request(
         'POST',
-        Uri.parse('http://localhost/auth/login'),
+        Uri.parse('http://localhost/api/auth/login'),
         body: jsonEncode({
           'email': 'bob@example.com',
           'password': legacyPassword,
@@ -140,7 +145,7 @@ void main() {
         headers: {'content-type': 'application/json'},
       );
 
-      final response = await controller.login(loginRequest);
+      final response = await router.call(loginRequest);
       expect(response.statusCode, equals(200));
 
       final body =
