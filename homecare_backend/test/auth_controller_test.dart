@@ -150,5 +150,56 @@ void main() {
       expect(body['user']['email'], equals('bob@example.com'));
       expect(body['user']['familyId'], isNotEmpty);
     });
+
+    test('login returns 401 for unknown user', () async {
+      final loginRequest = Request(
+        'POST',
+        Uri.parse('http://localhost/auth/login'),
+        body: jsonEncode({
+          'email': 'unknown@example.com',
+          'password': 'does-not-matter',
+        }),
+        headers: {'content-type': 'application/json'},
+      );
+
+      final response = await controller.login(loginRequest);
+      expect(response.statusCode, equals(401));
+
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body, equals({'error': 'invalid_credentials'}));
+    });
+
+    test('login returns 401 for incorrect password', () async {
+      await controller.register(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/auth/register'),
+          body: jsonEncode({
+            'email': 'carol@example.com',
+            'password': 'CorrectHorseBatteryStaple',
+            'name': 'Carol',
+          }),
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      final loginRequest = Request(
+        'POST',
+        Uri.parse('http://localhost/auth/login'),
+        body: jsonEncode({
+          'email': 'carol@example.com',
+          'password': 'wrong-password',
+        }),
+        headers: {'content-type': 'application/json'},
+      );
+
+      final response = await controller.login(loginRequest);
+      expect(response.statusCode, equals(401));
+
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body, equals({'error': 'invalid_credentials'}));
+    });
   });
 }

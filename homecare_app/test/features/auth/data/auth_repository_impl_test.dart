@@ -1,10 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-
-import 'package:homecare_app/core/constants/storage_keys.dart';
 import 'package:homecare_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:homecare_app/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:test/test.dart';
 
 class MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
 
@@ -24,14 +23,43 @@ void main() {
     );
   });
 
-  test('hasValidSession returns true when access and refresh tokens are saved', () async {
-    when(() => secureStorage.read(key: StorageKeys.accessToken)).thenAnswer((_) async => 'access');
-    when(() => secureStorage.read(key: StorageKeys.refreshToken)).thenAnswer((_) async => 'refresh');
+  group('login', () {
+    test('throws Invalid credentials error when backend responds with 401', () async {
+      when(
+        () => remoteDataSource.login(
+          email: any<String>(named: 'email'),
+          password: any<String>(named: 'password'),
+        ),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/auth/login'),
+          response: Response(
+            requestOptions: RequestOptions(path: '/auth/login'),
+            statusCode: 401,
+            statusMessage: 'Unauthorized',
+            data: {'error': 'invalid_credentials'},
+          ),
+          type: DioExceptionType.badResponse,
+        ),
+      );
 
-    final result = await repository.hasValidSession();
+      await expectLater(
+        repository.login(email: 'foo@bar.com', password: 'wrong'),
+        throwsA(equals('Invalid credentials. Please try again.')),
+      );
 
-    expect(result, isTrue);
-    verify(() => secureStorage.read(key: StorageKeys.accessToken)).called(1);
-    verify(() => secureStorage.read(key: StorageKeys.refreshToken)).called(1);
+      verify(
+        () => remoteDataSource.login(
+          email: 'foo@bar.com',
+          password: 'wrong',
+        ),
+      ).called(1);
+      verifyNever(
+        () => secureStorage.write(
+          key: any<String>(named: 'key'),
+          value: any<String?>(named: 'value'),
+        ),
+      );
+    });
   });
 }
