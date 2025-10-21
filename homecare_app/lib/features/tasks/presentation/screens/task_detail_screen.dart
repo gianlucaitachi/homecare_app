@@ -186,13 +186,35 @@ class _TaskDetailView extends StatelessWidget {
   }
 
   Future<void> _scanToComplete(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final controller = TaskQrScannerSheetController();
+
     await showModalBottomSheet<void>(
       context: context,
-      builder: (_) => TaskQrScannerSheet(
-        onDetected: (code) {
-          context.read<TaskDetailCubit>().completeWithQr(code);
-        },
-      ),
+      builder: (sheetContext) {
+        return TaskQrScannerSheet(
+          controller: controller,
+          onDetected: (code) async {
+            final cubit = sheetContext.read<TaskDetailCubit>();
+            await cubit.completeWithQr(code);
+            final status = cubit.state.actionStatus;
+            if (status == TaskDetailActionStatus.success) {
+              if (sheetContext.mounted) {
+                Navigator.of(sheetContext).pop();
+              }
+            } else if (status == TaskDetailActionStatus.failure) {
+              final message =
+                  cubit.state.actionMessage ?? 'Failed to complete task';
+              messenger
+                ..hideCurrentSnackBar()
+                ..showSnackBar(SnackBar(content: Text(message)));
+              controller.reset();
+            } else {
+              controller.reset();
+            }
+          },
+        );
+      },
     );
   }
 

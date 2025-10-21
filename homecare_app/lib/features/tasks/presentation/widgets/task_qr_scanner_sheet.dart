@@ -1,10 +1,37 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-class TaskQrScannerSheet extends StatefulWidget {
-  const TaskQrScannerSheet({super.key, required this.onDetected});
+typedef TaskQrDetectedCallback = Future<void> Function(String payload);
 
-  final ValueChanged<String> onDetected;
+class TaskQrScannerSheetController {
+  void _attach(_TaskQrScannerSheetState state) {
+    _state = state;
+  }
+
+  void _detach(_TaskQrScannerSheetState state) {
+    if (_state == state) {
+      _state = null;
+    }
+  }
+
+  void reset() {
+    _state?._resetHandled();
+  }
+
+  _TaskQrScannerSheetState? _state;
+}
+
+class TaskQrScannerSheet extends StatefulWidget {
+  const TaskQrScannerSheet({
+    super.key,
+    required this.onDetected,
+    this.controller,
+  });
+
+  final TaskQrDetectedCallback onDetected;
+  final TaskQrScannerSheetController? controller;
 
   @override
   State<TaskQrScannerSheet> createState() => _TaskQrScannerSheetState();
@@ -12,6 +39,35 @@ class TaskQrScannerSheet extends StatefulWidget {
 
 class _TaskQrScannerSheetState extends State<TaskQrScannerSheet> {
   bool _handled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?._attach(this);
+  }
+
+  @override
+  void didUpdateWidget(covariant TaskQrScannerSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?._detach(this);
+      widget.controller?._attach(this);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?._detach(this);
+    super.dispose();
+  }
+
+  void _resetHandled() {
+    if (!mounted) return;
+    if (!_handled) return;
+    setState(() {
+      _handled = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +90,10 @@ class _TaskQrScannerSheetState extends State<TaskQrScannerSheet> {
                 for (final barcode in capture.barcodes) {
                   final value = barcode.rawValue;
                   if (value != null && value.isNotEmpty) {
-                    _handled = true;
-                    widget.onDetected(value);
-                    if (mounted) Navigator.of(context).pop();
+                    setState(() {
+                      _handled = true;
+                    });
+                    unawaited(widget.onDetected(value));
                     break;
                   }
                 }
