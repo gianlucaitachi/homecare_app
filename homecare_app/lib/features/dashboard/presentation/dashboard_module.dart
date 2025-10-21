@@ -8,11 +8,13 @@ class DashboardModule extends StatelessWidget {
     required this.user,
     required this.onViewTasks,
     required this.onOpenChat,
+    required this.onViewMembers,
   });
 
   final User user;
   final VoidCallback onViewTasks;
   final VoidCallback onOpenChat;
+  final VoidCallback onViewMembers;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +27,7 @@ class DashboardModule extends StatelessWidget {
         user: user,
         onViewTasks: onViewTasks,
         onOpenChat: onOpenChat,
+        onViewMembers: onViewMembers,
       ),
     );
   }
@@ -35,11 +38,13 @@ class _DashboardOverview extends StatelessWidget {
     required this.user,
     required this.onViewTasks,
     required this.onOpenChat,
+    required this.onViewMembers,
   });
 
   final User user;
   final VoidCallback onViewTasks;
   final VoidCallback onOpenChat;
+  final VoidCallback onViewMembers;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +92,14 @@ class _DashboardOverview extends StatelessWidget {
                 title: const Text('Review care tasks'),
                 subtitle: const Text('See assignments and create new tasks'),
                 onTap: onViewTasks,
+                trailing: const Icon(Icons.chevron_right),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.group),
+                title: const Text('View family members'),
+                subtitle: const Text('See caregivers and their roles'),
+                onTap: onViewMembers,
                 trailing: const Icon(Icons.chevron_right),
               ),
               const Divider(height: 1),

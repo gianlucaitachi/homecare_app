@@ -12,6 +12,10 @@ import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:homecare_app/features/chat/data/repositories/chat_repository.dart';
 import 'package:homecare_app/features/chat/presentation/cubit/chat_cubit.dart';
+import 'package:homecare_app/features/members/data/datasources/member_remote_data_source.dart';
+import 'package:homecare_app/features/members/data/repositories/member_repository_impl.dart';
+import 'package:homecare_app/features/members/domain/repositories/member_repository.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_bloc.dart';
 import 'package:homecare_app/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:homecare_app/features/tasks/data/repositories/task_repository_impl.dart';
 import 'package:homecare_app/features/tasks/data/services/task_socket_service.dart';
@@ -99,6 +103,21 @@ void _registerFeatureDependencies() {
       ),
     )
     ..registerFactory(() => TaskBloc(notificationService: sl()));
+
+  // Members
+  sl
+    ..registerLazySingleton<MemberRemoteDataSource>(
+      () => MemberRemoteDataSourceImpl(apiClient: sl()),
+    )
+    ..registerLazySingleton<MemberRepository>(
+      () => MemberRepositoryImpl(remoteDataSource: sl()),
+    )
+    ..registerFactoryParam<MembersBloc, String?, void>(
+      (familyId, _) => MembersBloc(
+        repository: sl(),
+        familyId: familyId,
+      ),
+    );
 
   // Chat
   sl

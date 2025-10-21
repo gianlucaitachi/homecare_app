@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
 import 'package:homecare_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:homecare_app/features/dashboard/presentation/dashboard_module.dart';
+import 'package:homecare_app/features/members/presentation/screens/members_screen.dart';
 import 'package:homecare_app/features/profile/presentation/profile_screen.dart';
 import 'package:homecare_app/features/tasks/presentation/tasks_module.dart';
 
@@ -48,6 +49,7 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
         user: user,
         onViewTasks: () => _onDestinationSelected(1),
         onOpenChat: () => _onDestinationSelected(2),
+        onViewMembers: () => _openMembers(context, user.familyId),
       ),
       TasksModule(
         key: const PageStorageKey('tasks'),
@@ -71,6 +73,14 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
         _currentIndex = index;
       });
     }
+  }
+
+  void _openMembers(BuildContext context, String familyId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MembersScreen(familyId: familyId),
+      ),
+    );
   }
 
   @override
