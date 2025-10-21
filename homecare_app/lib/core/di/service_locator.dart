@@ -1,6 +1,8 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:homecare_app/core/connectivity/connectivity_cubit.dart';
 import 'package:homecare_app/core/api/api_client.dart';
 import 'package:homecare_app/core/constants/app_constants.dart';
 import 'package:homecare_app/core/notifications/notification_service.dart';
@@ -37,6 +39,7 @@ void _registerExternalDependencies() {
     ..registerLazySingleton<FlutterSecureStorage>(
       () => const FlutterSecureStorage(),
     )
+    ..registerLazySingleton<Connectivity>(() => Connectivity())
     ..registerLazySingleton<ApiClient>(() {
       final apiClient = ApiClient(AppConstants.baseUrl, sl());
       apiClient.addInterceptor(
@@ -59,12 +62,16 @@ void _registerExternalDependencies() {
 }
 
 void _registerCoreServices() {
-  sl.registerLazySingleton<NotificationService>(
-    () => NotificationService(
-      flutterLocalNotificationsPlugin: sl(),
-      hive: sl(),
-    ),
-  );
+  sl
+    ..registerLazySingleton<NotificationService>(
+      () => NotificationService(
+        flutterLocalNotificationsPlugin: sl(),
+        hive: sl(),
+      ),
+    )
+    ..registerFactory<ConnectivityCubit>(
+      () => ConnectivityCubit(connectivity: sl()),
+    );
 }
 
 void _registerFeatureDependencies() {

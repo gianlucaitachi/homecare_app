@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/core/connectivity/connectivity_cubit.dart';
+import 'package:homecare_app/core/connectivity/connectivity_state.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
+import 'package:homecare_app/core/widgets/offline_status_banner.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
@@ -43,125 +46,151 @@ class _TaskDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<TaskDetailCubit, TaskDetailState>(
+    return BlocListener<ConnectivityCubit, ConnectivityState>(
+      listenWhen: (previous, current) => previous.isOffline && !current.isOffline,
       listener: (context, state) {
-        if (state.actionStatus == TaskDetailActionStatus.success &&
-            state.actionMessage != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(state.actionMessage!)));
-        } else if (state.actionStatus == TaskDetailActionStatus.failure &&
-            state.actionMessage != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(state.actionMessage!)));
-        }
+        context.read<TaskDetailCubit>().load();
       },
-      builder: (context, state) {
-        switch (state.status) {
-          case TaskDetailStatus.initial:
-          case TaskDetailStatus.loading:
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          case TaskDetailStatus.failure:
-            return Scaffold(
-              appBar: AppBar(title: const Text('Task detail')),
-              body: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-                      const SizedBox(height: 12),
-                      Text(state.errorMessage ?? 'Unable to load task'),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => context.read<TaskDetailCubit>().load(),
-                        child: const Text('Retry'),
-                      )
-                    ],
+      child: BlocConsumer<TaskDetailCubit, TaskDetailState>(
+        listener: (context, state) {
+          if (state.actionStatus == TaskDetailActionStatus.success &&
+              state.actionMessage != null) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.actionMessage!)));
+          } else if (state.actionStatus == TaskDetailActionStatus.failure &&
+              state.actionMessage != null) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.actionMessage!)));
+          }
+        },
+        builder: (context, state) {
+          switch (state.status) {
+            case TaskDetailStatus.initial:
+            case TaskDetailStatus.loading:
+              return Scaffold(
+                body: _wrapWithOfflineBanner(
+                  const Center(child: CircularProgressIndicator()),
+                ),
+              );
+            case TaskDetailStatus.failure:
+              return Scaffold(
+                appBar: AppBar(title: const Text('Task detail')),
+                body: _wrapWithOfflineBanner(
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 48, color: Colors.redAccent),
+                          const SizedBox(height: 12),
+                          Text(state.errorMessage ?? 'Unable to load task'),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () => context.read<TaskDetailCubit>().load(),
+                            child: const Text('Retry'),
+                          )
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            );
-          case TaskDetailStatus.loaded:
-            final task = state.task!;
-            return Scaffold(
-              appBar: AppBar(
-                title: Text(task.title),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _openEdit(context, task),
-                  ),
-                ],
-              ),
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Chip(
-                          label: Text(task.status.label),
-                          avatar: Icon(
-                            task.isCompleted ? Icons.check_circle : Icons.schedule,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        if (task.assignedUserId != null)
-                          Chip(label: Text('Assigned: ${task.assignedUserId}')),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (task.description != null && task.description!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Text(task.description!),
-                      ),
-                    Row(
-                      children: [
-                        const Icon(Icons.family_restroom, size: 18),
-                        const SizedBox(width: 8),
-                        Text('Family: ${task.familyId}'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          task.dueDate == null
-                              ? 'No due date'
-                              : 'Due: ${MaterialLocalizations.of(context).formatMediumDate(task.dueDate!)}',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Text('Task QR Code', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 12),
-                    TaskQrView(qrImageBase64: task.qrImageBase64),
-                    const SizedBox(height: 24),
-                    if (!task.isCompleted)
-                      ElevatedButton.icon(
-                        onPressed: () => _scanToComplete(context),
-                        icon: const Icon(Icons.qr_code_scanner),
-                        label: const Text('Scan QR to complete'),
-                      ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => _assignCaregiver(context),
-                      icon: const Icon(Icons.person_add_alt),
-                      label: const Text('Assign caregiver'),
+              );
+            case TaskDetailStatus.loaded:
+              final task = state.task!;
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(task.title),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _openEdit(context, task),
                     ),
                   ],
                 ),
-              ),
-            );
-        }
-      },
+                body: _wrapWithOfflineBanner(
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Chip(
+                              label: Text(task.status.label),
+                              avatar: Icon(
+                                task.isCompleted
+                                    ? Icons.check_circle
+                                    : Icons.schedule,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            if (task.assignedUserId != null)
+                              Chip(label: Text('Assigned: ${task.assignedUserId}')),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (task.description != null && task.description!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(task.description!),
+                          ),
+                        Row(
+                          children: [
+                            const Icon(Icons.family_restroom, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Family: ${task.familyId}'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              task.dueDate == null
+                                  ? 'No due date'
+                                  : 'Due: ${MaterialLocalizations.of(context).formatMediumDate(task.dueDate!)}',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        Text('Task QR Code',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 12),
+                        TaskQrView(qrImageBase64: task.qrImageBase64),
+                        const SizedBox(height: 24),
+                        if (!task.isCompleted)
+                          ElevatedButton.icon(
+                            onPressed: () => _scanToComplete(context),
+                            icon: const Icon(Icons.qr_code_scanner),
+                            label: const Text('Scan QR to complete'),
+                          ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => _assignCaregiver(context),
+                          icon: const Icon(Icons.person_add_alt),
+                          label: const Text('Assign caregiver'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _wrapWithOfflineBanner(Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const OfflineStatusBanner(),
+        Expanded(child: child),
+      ],
     );
   }
 
