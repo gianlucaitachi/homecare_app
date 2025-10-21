@@ -1,9 +1,12 @@
 import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/core/di/service_locator.dart';
 import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:homecare_app/features/profile/presentation/bloc/profile_bloc.dart';
+import 'package:homecare_app/features/profile/presentation/profile_edit_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.session});
@@ -12,61 +15,72 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = session.user;
-    final theme = Theme.of(context);
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        final currentSession = authState is Authenticated ? authState.session : session;
+        final user = currentSession.user;
+        final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          CircleAvatar(
-            radius: 36,
-            child: Text(
-              _initialsFor(user.name),
-              style: theme.textTheme.headlineSmall,
-            ),
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Profile'),
           ),
-          const SizedBox(height: 16),
-          Text(
-            user.name,
-            style: theme.textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            user.email,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.badge_outlined),
-                  title: const Text('User ID'),
-                  subtitle: Text(user.id),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              CircleAvatar(
+                radius: 36,
+                child: Text(
+                  _initialsFor(user.name),
+                  style: theme.textTheme.headlineSmall,
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.family_restroom),
-                  title: const Text('Family ID'),
-                  subtitle: Text(user.familyId),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                user.name,
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                user.email,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.badge_outlined),
+                      title: const Text('User ID'),
+                      subtitle: Text(user.id),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.family_restroom),
+                      title: const Text('Family ID'),
+                      subtitle: Text(user.familyId),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => _openEditProfile(context, currentSession),
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit profile'),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () => _confirmLogout(context),
+                icon: const Icon(Icons.logout),
+                label: const Text('Log out'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => _confirmLogout(context),
-            icon: const Icon(Icons.logout),
-            label: const Text('Log out'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -99,6 +113,31 @@ class ProfileScreen extends StatelessWidget {
 
     if (shouldLogout == true && context.mounted) {
       context.read<AuthBloc>().add(LogoutRequested());
+    }
+  }
+
+  Future<void> _openEditProfile(BuildContext context, AuthSession session) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => BlocProvider(
+          create: (context) => ProfileBloc(
+            profileRepository: sl(),
+            authBloc: context.read<AuthBloc>(),
+          ),
+          child: ProfileEditScreen(
+            initialName: session.user.name,
+            initialEmail: session.user.email,
+          ),
+        ),
+      ),
+    );
+
+    if (result == true) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
     }
   }
 }
