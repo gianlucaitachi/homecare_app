@@ -3,6 +3,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/auth_session.dart';
+import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 part 'auth_event.dart';
@@ -18,6 +19,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<AuthCheckRequested>(_onAuthCheckRequested);
+    on<AuthUserUpdated>(_onAuthUserUpdated);
   }
 
   // Xử lý sự kiện đăng nhập
@@ -82,6 +84,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } catch (e) {
       emit(AuthFailure(e.toString()));
+    }
+  }
+
+  void _onAuthUserUpdated(
+    AuthUserUpdated event,
+    Emitter<AuthState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is Authenticated) {
+      emit(Authenticated(currentState.session.copyWith(user: event.user)));
     }
   }
 }

@@ -12,6 +12,9 @@ import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:homecare_app/features/chat/data/repositories/chat_repository.dart';
 import 'package:homecare_app/features/chat/presentation/cubit/chat_cubit.dart';
+import 'package:homecare_app/features/profile/data/datasources/profile_remote_data_source.dart';
+import 'package:homecare_app/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:homecare_app/features/profile/domain/repositories/profile_repository.dart';
 import 'package:homecare_app/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:homecare_app/features/tasks/data/repositories/task_repository_impl.dart';
 import 'package:homecare_app/features/tasks/data/services/task_socket_service.dart';
@@ -79,6 +82,18 @@ void _registerFeatureDependencies() {
     )
     ..registerLazySingleton<AuthRemoteDataSource>(
       () => AuthRemoteDataSourceImpl(apiClient: sl()),
+    );
+
+  // Profile
+  sl
+    ..registerLazySingleton<ProfileRemoteDataSource>(
+      () => ProfileRemoteDataSourceImpl(apiClient: sl()),
+    )
+    ..registerLazySingleton<ProfileRepository>(
+      () => ProfileRepositoryImpl(
+        remoteDataSource: sl(),
+        secureStorage: sl(),
+      ),
     );
 
   // Tasks
