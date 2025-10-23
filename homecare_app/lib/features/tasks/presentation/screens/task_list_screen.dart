@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_bloc.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_event.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
@@ -81,13 +83,24 @@ class _TaskListView extends StatelessWidget {
     final repository = sl<TaskRepository>();
     final familyId = context.read<TaskListBloc>().familyId;
     final taskBloc = context.read<TaskBloc>();
+    final membersBloc = sl<MembersBloc>(param1: familyId);
+    if (familyId != null) {
+      membersBloc.add(MembersRequested(familyId: familyId));
+    }
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => TaskFormCubit(
-            repository: repository,
-            taskBloc: taskBloc,
-          ),
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (_) => TaskFormCubit(
+                repository: repository,
+                taskBloc: taskBloc,
+              ),
+            ),
+            BlocProvider(
+              create: (_) => membersBloc,
+            ),
+          ],
           child: TaskFormScreen(initialFamilyId: familyId),
         ),
       ),
@@ -130,7 +143,10 @@ class _TaskTile extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => TaskDetailScreen(taskId: task.id),
+            builder: (_) => TaskDetailScreen(
+              taskId: task.id,
+              familyId: task.familyId,
+            ),
           ),
         );
       },

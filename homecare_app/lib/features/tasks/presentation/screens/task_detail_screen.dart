@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_bloc.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_event.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_state.dart';
+import 'package:homecare_app/features/members/presentation/widgets/member_selector_dialog.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
@@ -14,32 +18,59 @@ import 'package:homecare_app/features/tasks/presentation/widgets/task_qr_scanner
 import 'package:homecare_app/features/tasks/presentation/widgets/task_qr_view.dart';
 
 class TaskDetailScreen extends StatelessWidget {
-  const TaskDetailScreen({super.key, required this.taskId});
+  const TaskDetailScreen({super.key, required this.taskId, this.familyId});
 
   final String taskId;
+  final String? familyId;
 
   @override
   Widget build(BuildContext context) {
     final taskBloc = context.read<TaskBloc>();
-    return BlocProvider(
-      create: (_) {
-        final cubit = TaskDetailCubit(
-          repository: sl<TaskRepository>(),
-          taskBloc: taskBloc,
-          taskId: taskId,
-        );
-        unawaited(cubit.load());
-        return cubit;
-      },
-      child: _TaskDetailView(taskId: taskId),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) {
+            final bloc = sl<MembersBloc>(param1: familyId);
+            if (familyId != null) {
+              bloc.add(MembersRequested(familyId: familyId));
+            }
+            return bloc;
+          },
+        ),
+        BlocProvider(
+          create: (_) {
+            final cubit = TaskDetailCubit(
+              repository: sl<TaskRepository>(),
+              taskBloc: taskBloc,
+              taskId: taskId,
+            );
+            unawaited(cubit.load());
+            return cubit;
+          },
+        ),
+      ],
+      child: _TaskDetailView(initialFamilyId: familyId),
     );
   }
 }
 
-class _TaskDetailView extends StatelessWidget {
-  const _TaskDetailView({required this.taskId});
+class _TaskDetailView extends StatefulWidget {
+  const _TaskDetailView({this.initialFamilyId});
 
-  final String taskId;
+  final String? initialFamilyId;
+
+  @override
+  State<_TaskDetailView> createState() => _TaskDetailViewState();
+}
+
+class _TaskDetailViewState extends State<_TaskDetailView> {
+  String? _membersLoadedFor;
+
+  @override
+  void initState() {
+    super.initState();
+    _membersLoadedFor = widget.initialFamilyId;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +84,15 @@ class _TaskDetailView extends StatelessWidget {
             state.actionMessage != null) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(state.actionMessage!)));
+        }
+
+        if (state.status == TaskDetailStatus.loaded) {
+          final task = state.task;
+          final familyId = task?.familyId;
+          if (familyId != null && familyId.isNotEmpty && _membersLoadedFor != familyId) {
+            context.read<MembersBloc>().add(MembersRequested(familyId: familyId, silent: true));
+            _membersLoadedFor = familyId;
+          }
         }
       },
       builder: (context, state) {
@@ -111,7 +151,16 @@ class _TaskDetailView extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         if (task.assignedUserId != null)
-                          Chip(label: Text('Assigned: ${task.assignedUserId}')),
+                          BlocBuilder<MembersBloc, MembersState>(
+                            builder: (context, membersState) {
+                              final member =
+                                  membersState.memberById(task.assignedUserId);
+                              final label = member != null
+                                  ? 'Assigned: ${member.name}'
+                                  : 'Assigned: ${task.assignedUserId}';
+                              return Chip(label: Text(label));
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -168,14 +217,20 @@ class _TaskDetailView extends StatelessWidget {
   Future<void> _openEdit(BuildContext context, Task task) async {
     final repository = sl<TaskRepository>();
     final taskBloc = context.read<TaskBloc>();
+    final membersBloc = context.read<MembersBloc>();
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => TaskFormCubit(
-            repository: repository,
-            taskBloc: taskBloc,
-            initialTask: task,
-          ),
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (_) => TaskFormCubit(
+                repository: repository,
+                taskBloc: taskBloc,
+                initialTask: task,
+              ),
+            ),
+            BlocProvider.value(value: membersBloc),
+          ],
           child: TaskFormScreen(initialTask: task),
         ),
       ),
@@ -197,31 +252,31 @@ class _TaskDetailView extends StatelessWidget {
   }
 
   Future<void> _assignCaregiver(BuildContext context) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Assign caregiver'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(labelText: 'Caregiver user ID'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(controller.text),
-              child: const Text('Assign'),
-            ),
-          ],
-        );
-      },
-    );
-    if (result != null && result.isNotEmpty && context.mounted) {
-      await context.read<TaskDetailCubit>().assignTo(result);
+    final membersBloc = context.read<MembersBloc>();
+    final detailState = context.read<TaskDetailCubit>().state;
+    final familyId = membersBloc.familyId ?? detailState.task?.familyId;
+    if (familyId == null || familyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Family information missing. Unable to load caregivers.')),
+      );
+      return;
     }
+
+    final selection = await showMemberSelectorDialog(
+      context,
+      familyId: familyId,
+      title: 'Assign caregiver',
+    );
+
+    if (!context.mounted || selection == null) {
+      return;
+    }
+
+    final member = selection.member;
+    if (member == null) {
+      return;
+    }
+
+    await context.read<TaskDetailCubit>().assignTo(member.id);
   }
 }

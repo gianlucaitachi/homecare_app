@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/features/members/domain/entities/member.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_bloc.dart';
+import 'package:homecare_app/features/members/presentation/bloc/members_state.dart';
+import 'package:homecare_app/features/members/presentation/widgets/member_selector_dialog.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_form_cubit.dart';
 import 'package:homecare_app/features/tasks/presentation/cubit/task_form_state.dart';
@@ -21,6 +25,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _assignedController;
   DateTime? _selectedDueDate;
+  String? _selectedMemberId;
 
   TaskFormCubit get _cubit => context.read<TaskFormCubit>();
 
@@ -33,6 +38,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     _titleController = TextEditingController(text: initial?.title ?? '');
     _descriptionController = TextEditingController(text: initial?.description ?? '');
     _assignedController = TextEditingController(text: initial?.assignedUserId ?? '');
+    _selectedMemberId = initial?.assignedUserId;
     _selectedDueDate = initial?.dueDate;
   }
 
@@ -48,16 +54,36 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = _cubit.isEditing;
-    return BlocListener<TaskFormCubit, TaskFormState>(
-      listenWhen: (previous, current) => previous.status != current.status,
-      listener: (context, state) {
-        if (state.status == TaskFormStatus.success) {
-          Navigator.of(context).pop(state.result);
-        } else if (state.status == TaskFormStatus.failure && state.errorMessage != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<TaskFormCubit, TaskFormState>(
+          listenWhen: (previous, current) => previous.status != current.status,
+          listener: (context, state) {
+            if (state.status == TaskFormStatus.success) {
+              Navigator.of(context).pop(state.result);
+            } else if (state.status == TaskFormStatus.failure && state.errorMessage != null) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+            }
+          },
+        ),
+        BlocListener<MembersBloc, MembersState>(
+          listenWhen: (previous, current) =>
+              previous.status != current.status && current.status == MembersStatus.success,
+          listener: (context, state) {
+            final selectedId = _selectedMemberId;
+            if (selectedId == null) {
+              return;
+            }
+            final member = state.memberById(selectedId);
+            if (member != null && _assignedController.text != member.name) {
+              setState(() {
+                _assignedController.text = member.name;
+              });
+            }
+          },
+        ),
+      ],
       child: Scaffold(
         appBar: AppBar(
           title: Text(isEditing ? 'Edit task' : 'Create task'),
@@ -99,10 +125,59 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                   maxLines: 4,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _assignedController,
-                  decoration:
-                      const InputDecoration(labelText: 'Assigned caregiver ID (optional)'),
+                BlocBuilder<MembersBloc, MembersState>(
+                  builder: (context, membersState) {
+                    final selectedId = _selectedMemberId;
+                    final selectedMember = membersState.memberById(selectedId);
+                    final helperText = selectedMember != null
+                        ? '${selectedMember.email} • ${selectedMember.roleLabel}'
+                        : selectedId != null
+                            ? 'Assigned to user ID: $selectedId'
+                            : 'Tap to choose a caregiver from your family';
+                    final suffixIcon = membersState.isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : selectedId != null
+                            ? IconButton(
+                                tooltip: 'Clear caregiver',
+                                onPressed: _clearMemberSelection,
+                                icon: const Icon(Icons.clear),
+                              )
+                            : const Icon(Icons.people_outline);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: _assignedController,
+                          readOnly: true,
+                          enableInteractiveSelection: false,
+                          decoration: InputDecoration(
+                            labelText: 'Assigned caregiver (optional)',
+                            helperText: helperText,
+                            suffixIcon: suffixIcon,
+                          ),
+                          onTap: () => _openMemberSelector(context),
+                        ),
+                        if (membersState.status == MembersStatus.failure &&
+                            membersState.errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              membersState.errorMessage!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -168,8 +243,51 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           ? null
           : _descriptionController.text,
       dueDate: _selectedDueDate,
-      assignedUserId:
-          _assignedController.text.isEmpty ? null : _assignedController.text,
+      assignedUserId: _selectedMemberId,
     );
+  }
+
+  Future<void> _openMemberSelector(BuildContext context) async {
+    final bloc = context.read<MembersBloc>();
+    final manualFamilyId = _familyController.text.trim();
+    final effectiveFamilyId =
+        manualFamilyId.isEmpty ? (bloc.familyId ?? '') : manualFamilyId;
+
+    if (effectiveFamilyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a family ID to choose caregivers.')),
+      );
+      return;
+    }
+
+    final selection = await showMemberSelectorDialog(
+      context,
+      familyId: effectiveFamilyId,
+      allowClear: true,
+    );
+
+    if (!mounted || selection == null) {
+      return;
+    }
+
+    if (selection.cleared) {
+      _clearMemberSelection();
+    } else if (selection.member != null) {
+      _setSelectedMember(selection.member!);
+    }
+  }
+
+  void _setSelectedMember(Member member) {
+    setState(() {
+      _selectedMemberId = member.id;
+      _assignedController.text = member.name;
+    });
+  }
+
+  void _clearMemberSelection() {
+    setState(() {
+      _selectedMemberId = null;
+      _assignedController.text = '';
+    });
   }
 }
