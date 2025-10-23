@@ -66,7 +66,7 @@ class SocketIoClientWrapper implements SocketClient {
 
 class SocketService {
   SocketService(this._secureStorage, {SocketFactory? socketFactory})
-      : _socketFactory = socketFactory ?? SocketIoClientWrapper;
+      : _socketFactory = socketFactory ?? SocketIoClientWrapper.new;
 
   final FlutterSecureStorage _secureStorage;
   final SocketFactory _socketFactory;

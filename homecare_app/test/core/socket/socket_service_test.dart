@@ -54,6 +54,16 @@ class _FakeSocketClient implements SocketClient {
 }
 
 void main() {
+  test('SocketIoClientWrapper tear-off returns SocketClient implementation', () {
+    final factory = SocketIoClientWrapper.new;
+    final socket = factory('http://localhost', {'autoConnect': false});
+
+    expect(socket, isA<SocketClient>());
+    expect(socket, isA<SocketIoClientWrapper>());
+
+    socket.dispose();
+  });
+
   group('SocketService', () {
     late _MockSecureStorage secureStorage;
     late _FakeSocketClient fakeSocket;
