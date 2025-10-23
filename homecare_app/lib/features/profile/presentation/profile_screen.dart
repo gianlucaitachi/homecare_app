@@ -2,8 +2,8 @@ import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart'
+    show AuthBloc, LogoutRequested;
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.session});
