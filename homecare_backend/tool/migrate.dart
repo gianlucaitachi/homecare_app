@@ -79,16 +79,9 @@ List<String> _splitSqlStatements(String sql) {
       continue;
     }
 
-    if (!inSingleQuote &&
-        !inDoubleQuote &&
-        char == '-' &&
-        nextChar == '-') {
+    if (!inSingleQuote && !inDoubleQuote && char == '-' && nextChar == '-') {
       index += 2;
-      while (index < sql.length &&
-          sql[index] != '
-' &&
-          sql[index] != '
-') {
+      while (index < sql.length && sql[index] != '\n' && sql[index] != '\r') {
         index++;
       }
       continue;
