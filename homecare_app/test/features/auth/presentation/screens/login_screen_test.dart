@@ -8,8 +8,8 @@ import 'package:homecare_app/core/socket/socket_service.dart';
 import 'package:homecare_app/features/app_shell/presentation/authenticated_shell.dart';
 import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
 import 'package:homecare_app/features/auth/domain/entities/user.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
+import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart'
+    show AuthBloc, AuthState, Authenticated, Unauthenticated;
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:homecare_app/features/chat/data/models/chat_message.dart';
 import 'package:homecare_app/features/chat/data/repositories/chat_repository.dart';

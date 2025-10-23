@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homecare_app/features/app_shell/presentation/authenticated_shell.dart';
-import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
-import 'package:homecare_app/features/auth/domain/entities/user.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
+import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart'
+    show AuthBloc, AuthState, Authenticated, Unauthenticated, AuthLoading;
 import 'package:homecare_app/features/auth/presentation/screens/authentication_gate.dart';
 import 'package:homecare_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:mocktail/mocktail.dart';
