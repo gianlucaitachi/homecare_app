@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
 import 'package:homecare_app/core/notifications/notification_service.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:homecare_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart'
+    show AuthBloc, AuthCheckRequested;
 import 'package:homecare_app/features/auth/presentation/screens/authentication_gate.dart';
 
 Future<void> main() async {
