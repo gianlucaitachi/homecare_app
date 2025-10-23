@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/core/connectivity/connectivity_cubit.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
 import 'package:homecare_app/core/notifications/notification_service.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart'
@@ -20,8 +21,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (context) => sl<AuthBloc>()..add(AuthCheckRequested()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (context) => sl<AuthBloc>()..add(AuthCheckRequested()),
+        ),
+        BlocProvider<ConnectivityCubit>(
+          create: (context) => sl<ConnectivityCubit>()..startMonitoring(),
+        ),
+      ],
       child: MaterialApp(
         title: 'HomeCare',
         theme: ThemeData(

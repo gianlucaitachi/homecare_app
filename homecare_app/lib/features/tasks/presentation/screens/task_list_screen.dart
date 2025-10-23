@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:homecare_app/core/connectivity/connectivity_cubit.dart';
+import 'package:homecare_app/core/connectivity/connectivity_state.dart';
 import 'package:homecare_app/core/di/service_locator.dart';
+import 'package:homecare_app/core/widgets/offline_status_banner.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/domain/repositories/task_repository.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_bloc.dart';
@@ -35,44 +38,64 @@ class _TaskListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tasks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _openCreate(context),
-          ),
-        ],
-      ),
-      body: BlocBuilder<TaskListBloc, TaskListState>(
-        builder: (context, state) {
-          switch (state.status) {
-            case TaskListStatus.initial:
-            case TaskListStatus.loading:
-              return const Center(child: CircularProgressIndicator());
-            case TaskListStatus.failure:
-              return _ErrorView(message: state.errorMessage ?? 'Failed to load tasks');
-            case TaskListStatus.success:
-              if (state.tasks.isEmpty) {
-                return const _EmptyView();
-              }
-              return RefreshIndicator(
-                onRefresh: () async {
-                  context.read<TaskListBloc>().add(const TaskListRefreshRequested());
+    return BlocListener<ConnectivityCubit, ConnectivityState>(
+      listenWhen: (previous, current) => previous.isOffline && !current.isOffline,
+      listener: (context, state) {
+        context
+            .read<TaskListBloc>()
+            .add(const TaskListRefreshRequested());
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Tasks'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => _openCreate(context),
+            ),
+          ],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const OfflineStatusBanner(),
+            Expanded(
+              child: BlocBuilder<TaskListBloc, TaskListState>(
+                builder: (context, state) {
+                  switch (state.status) {
+                    case TaskListStatus.initial:
+                    case TaskListStatus.loading:
+                      return const Center(child: CircularProgressIndicator());
+                    case TaskListStatus.failure:
+                      return _ErrorView(
+                        message: state.errorMessage ?? 'Failed to load tasks',
+                      );
+                    case TaskListStatus.success:
+                      if (state.tasks.isEmpty) {
+                        return const _EmptyView();
+                      }
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          context
+                              .read<TaskListBloc>()
+                              .add(const TaskListRefreshRequested());
+                        },
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          itemCount: state.tasks.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final task = state.tasks[index];
+                            return _TaskTile(task: task);
+                          },
+                        ),
+                      );
+                  }
                 },
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  itemCount: state.tasks.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final task = state.tasks[index];
-                    return _TaskTile(task: task);
-                  },
-                ),
-              );
-          }
-        },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
