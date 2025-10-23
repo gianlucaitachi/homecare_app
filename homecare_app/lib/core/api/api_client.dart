@@ -25,7 +25,7 @@ class ApiClient {
         },
 
         // 2. Xử lý lỗi, đặc biệt là lỗi 401 để refresh token
-        onError: (DioError e, handler) async {
+        onError: (DioException e, handler) async {
           final refreshPath = _resolvePath('auth/refresh');
           final isRefreshRequest =
               e.requestOptions.path == refreshPath || e.requestOptions.path == '/$refreshPath';
@@ -61,7 +61,7 @@ class ApiClient {
                 return handler.next(e);
               }
 
-            } on DioError {
+            } on DioException {
               // Nếu refresh token cũng thất bại (ví dụ: đã hết hạn),
               // xóa tất cả token và trả về lỗi ban đầu.
               await _secureStorage.deleteAll();
