@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homecare_app/features/app_shell/presentation/authenticated_shell.dart';
+import 'package:homecare_app/features/auth/domain/entities/auth_session.dart';
+import 'package:homecare_app/features/auth/domain/entities/user.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:homecare_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:homecare_app/features/auth/presentation/screens/authentication_gate.dart';
@@ -10,6 +12,19 @@ import 'package:homecare_app/features/auth/presentation/screens/login_screen.dar
 import 'package:mocktail/mocktail.dart';
 
 import '../../../../helpers/mock_auth_bloc.dart';
+
+const _user = User(
+  id: 'user-1',
+  name: 'Test User',
+  email: 'test@example.com',
+  familyId: 'family-1',
+);
+
+const _session = AuthSession(
+  user: _user,
+  accessToken: 'access-token',
+  refreshToken: 'refresh-token',
+);
 
 void main() {
   late MockAuthBloc mockAuthBloc;
@@ -37,7 +52,7 @@ void main() {
 
   testWidgets('renders AuthenticatedShell when state is Authenticated',
       (tester) async {
-    const state = Authenticated();
+    const state = Authenticated(_session);
     when(() => mockAuthBloc.state).thenReturn(state);
     whenListen(mockAuthBloc, Stream<AuthState>.value(state), initialState: state);
 
