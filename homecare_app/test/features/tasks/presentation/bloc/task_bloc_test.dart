@@ -52,9 +52,9 @@ void main() {
     build: () => TaskBloc(notificationService: notificationService),
     act: (bloc) => bloc.add(TaskCreated(taskWithDueDate)),
     expect: () => [
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate,
         operation: TaskOperation.create,
       ),
@@ -81,15 +81,15 @@ void main() {
         ..add(TaskUpdated(previousTask: taskWithDueDate, updatedTask: updated));
     },
     expect: () => [
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate,
         operation: TaskOperation.create,
       ),
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate.copyWith(
           dueDate: taskWithDueDate.dueDate!.add(const Duration(hours: 2)),
         ),
@@ -120,15 +120,15 @@ void main() {
         );
     },
     expect: () => [
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate,
         operation: TaskOperation.create,
       ),
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate.copyWith(dueDate: null),
         operation: TaskOperation.update,
       ),
@@ -158,15 +158,15 @@ void main() {
         );
     },
     expect: () => [
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate,
         operation: TaskOperation.create,
       ),
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate.copyWith(
           status: domain.TaskStatus.completed,
           completedAt: taskWithDueDate.dueDate,
@@ -192,15 +192,15 @@ void main() {
         ..add(TaskDeleted(taskWithDueDate));
     },
     expect: () => [
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate,
         operation: TaskOperation.create,
       ),
-      const TaskState(status: TaskStatus.loading),
+      const TaskState(status: TaskViewStatus.loading),
       TaskState(
-        status: TaskStatus.success,
+        status: TaskViewStatus.success,
         task: taskWithDueDate,
         operation: TaskOperation.delete,
       ),

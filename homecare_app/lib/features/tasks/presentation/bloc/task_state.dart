@@ -2,23 +2,23 @@ import 'package:equatable/equatable.dart';
 import 'package:homecare_app/features/tasks/domain/entities/task.dart';
 import 'package:homecare_app/features/tasks/presentation/bloc/task_event.dart';
 
-enum TaskStatus { initial, loading, success, failure }
+enum TaskViewStatus { initial, loading, success, failure }
 
 class TaskState extends Equatable {
   const TaskState({
-    this.status = TaskStatus.initial,
+    this.status = TaskViewStatus.initial,
     this.task,
     this.operation,
     this.errorMessage,
   });
 
-  final TaskStatus status;
+  final TaskViewStatus status;
   final Task? task;
   final TaskOperation? operation;
   final String? errorMessage;
 
   TaskState copyWith({
-    TaskStatus? status,
+    TaskViewStatus? status,
     Task? task,
     TaskOperation? operation,
     String? errorMessage,
@@ -27,7 +27,7 @@ class TaskState extends Equatable {
       status: status ?? this.status,
       task: task ?? this.task,
       operation: operation ?? this.operation,
-      errorMessage: status == TaskStatus.failure
+      errorMessage: status == TaskViewStatus.failure
           ? (errorMessage ?? this.errorMessage)
           : null,
     );

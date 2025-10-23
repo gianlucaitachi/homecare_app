@@ -17,13 +17,13 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   final NotificationService _notificationService;
 
   Future<void> _onTaskCreated(TaskCreated event, Emitter<TaskState> emit) async {
-    emit(state.copyWith(status: TaskStatus.loading));
+    emit(state.copyWith(status: TaskViewStatus.loading));
 
     try {
       await _scheduleReminderIfNeeded(event.task);
       emit(
         state.copyWith(
-          status: TaskStatus.success,
+          status: TaskViewStatus.success,
           task: event.task,
           operation: TaskOperation.create,
         ),
@@ -31,7 +31,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     } catch (error) {
       emit(
         state.copyWith(
-          status: TaskStatus.failure,
+          status: TaskViewStatus.failure,
           errorMessage: error.toString(),
         ),
       );
@@ -39,13 +39,13 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   }
 
   Future<void> _onTaskUpdated(TaskUpdated event, Emitter<TaskState> emit) async {
-    emit(state.copyWith(status: TaskStatus.loading));
+    emit(state.copyWith(status: TaskViewStatus.loading));
 
     try {
       await _updateReminderForUpdate(event.previousTask, event.updatedTask);
       emit(
         state.copyWith(
-          status: TaskStatus.success,
+          status: TaskViewStatus.success,
           task: event.updatedTask,
           operation: TaskOperation.update,
         ),
@@ -53,7 +53,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     } catch (error) {
       emit(
         state.copyWith(
-          status: TaskStatus.failure,
+          status: TaskViewStatus.failure,
           errorMessage: error.toString(),
         ),
       );
@@ -61,13 +61,13 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   }
 
   Future<void> _onTaskDeleted(TaskDeleted event, Emitter<TaskState> emit) async {
-    emit(state.copyWith(status: TaskStatus.loading));
+    emit(state.copyWith(status: TaskViewStatus.loading));
 
     try {
       await _notificationService.cancelTaskReminder(event.task.id);
       emit(
         state.copyWith(
-          status: TaskStatus.success,
+          status: TaskViewStatus.success,
           task: event.task,
           operation: TaskOperation.delete,
         ),
@@ -75,7 +75,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     } catch (error) {
       emit(
         state.copyWith(
-          status: TaskStatus.failure,
+          status: TaskViewStatus.failure,
           errorMessage: error.toString(),
         ),
       );
